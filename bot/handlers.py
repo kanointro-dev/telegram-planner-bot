@@ -942,59 +942,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
     # --- Старт ---
-    if text == kb.BTN_CREATE:
-        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
-        context.user_data[CREATE] = {"step": "cat"}
-        _set_mode(context, "create_cat")
-        await send_panel(
-            context,
-            chat_id,
-            "🏷 Метка задачи — чтобы потом фильтровать списки.\nМожно пропустить.",
-            kb.category_keyboard(),
-        )
-        return
-
-    if text == kb.BTN_TASKS:
-        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
-        context.user_data[TASK_FILTER] = "all"
-        _set_mode(context, "tasks_scope")
-        context.user_data.pop(TASK_ORDER, None)
-        await send_panel(
-            context,
-            chat_id,
-            "📆 За какой период показать задачи?",
-            kb.tasks_scope_keyboard(),
-        )
-        return
-
-    if text == kb.BTN_RANDOM:
-        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
-        day = datetime.now(tz).date()
-        tasks = await storage.list_tasks_for_day(uid, day, include_done=False)
-        if not tasks:
-            tasks = await storage.list_inbox(uid, 60)
-        if not tasks:
-            tasks = await storage.list_all_active(uid, 60)
-        tasks = [t for t in tasks if t.status == TaskStatus.PENDING]
-        if not tasks:
-            await send_panel(
-                context,
-                chat_id,
-                "Пока нечего делать — создайте задачу.",
-                kb.main_reply_keyboard(),
-            )
-            return
-        t = random.choice(tasks)
-        line = f"{kb.urgency_emoji(t.priority)} {t.title}"
-        await send_panel(
-            context,
-            chat_id,
-            f"🎲 Попробуйте начать с этого:\n\n{line}\n\n"
-            "Закончите → «Задачи» → номер строки → «Готово».",
-            kb.main_reply_keyboard(),
-        )
-        _set_mode(context, "main")
-        return
+    # Обработка кнопок теперь в callback handler
 
     await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
     await send_panel(
@@ -1021,6 +969,197 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     tz = _tz(context)
 
     internal_uid = await storage.ensure_user(uid)
+
+    # --- Новые главные кнопки ---
+    if data == "create_task":
+        await query.message.delete()
+        context.user_data[CREATE] = {"step": "cat"}
+        _set_mode(context, "create_cat")
+        await send_panel(
+            context,
+            chat_id,
+            "🏷 Метка задачи — чтобы потом фильтровать списки.\nМожно пропустить.",
+            kb.category_keyboard(),
+        )
+        return
+
+    elif data == "show_tasks":
+        await query.message.delete()
+        context.user_data[TASK_FILTER] = "all"
+        _set_mode(context, "tasks_scope")
+        context.user_data.pop(TASK_ORDER, None)
+        await send_panel(
+            context,
+            chat_id,
+            "📆 За какой период показать задачи?",
+            kb.tasks_scope_keyboard(),
+        )
+        return
+
+    elif data == "random_task":
+        await query.message.delete()
+        day = datetime.now(tz).date()
+        tasks = await storage.list_tasks_for_day(internal_uid, day, include_done=False)
+        if not tasks:
+            tasks = await storage.list_inbox(internal_uid, 60)
+        if not tasks:
+            tasks = await storage.list_all_active(internal_uid, 60)
+        tasks = [t for t in tasks if t.status == TaskStatus.PENDING]
+        if not tasks:
+            await send_panel(
+                context,
+                chat_id,
+                "Пока нечего делать — создайте задачу.",
+                kb.main_reply_keyboard(),
+            )
+            return
+        t = random.choice(tasks)
+        line = f"{kb.urgency_emoji(t.priority)} {t.title}"
+        await send_panel(
+            context,
+            chat_id,
+            f"🎲 Попробуйте начать с этого:\n\n{line}\n\n"
+            "Закончите → «Задачи» → номер строки → «Готово».",
+            kb.main_reply_keyboard(),
+        )
+        return
+
+    # --- Обработка категорий ---
+    elif data.startswith("cat_"):
+        create = context.user_data.get(CREATE)
+        if not create or create.get("step") != "cat":
+            await query.answer("Некорректный шаг.", show_alert=False)
+            return
+        
+        cat_map = {
+            "cat_study": "study",
+            "cat_work": "work", 
+            "cat_life": "life",
+            "cat_skip": None,
+        }
+        if data not in cat_map:
+            await query.answer("Некорректная категория.", show_alert=False)
+            return
+            
+        create["category"] = cat_map[data]
+        create["step"] = "due_type"
+        await query.message.edit_text(
+            "Нужна конкретная дата у задачи?",
+            reply_markup=kb.create_due_keyboard(),
+        )
+        return
+
+    # --- Обработка типа даты ---
+    elif data in ("due_with", "due_without"):
+        create = context.user_data.get(CREATE)
+        if not create or create.get("step") != "due_type":
+            await query.answer("Некорректный шаг.", show_alert=False)
+            return
+        
+        if data == "due_with":
+            create["step"] = "day"
+            await query.message.edit_text(
+                "Шаг 1 из 4 · День\nНапишите число от 1 до 31.",
+                reply_markup=kb.date_step_keyboard(),
+            )
+        else:  # due_without
+            create["due_at"] = None
+            create["step"] = "title"
+            await query.message.edit_text(
+                "Шаг 2 из 2 · Название задачи\nНапишите текст задачи.",
+                reply_markup=kb.date_step_keyboard(),
+            )
+        return
+
+    # --- Обработка scope выбора ---
+    elif data.startswith("scope_"):
+        scope_map = {
+            "scope_today": "today",
+            "scope_tomorrow": "tmrw", 
+            "scope_all": "all",
+            "scope_archive": "archive",
+        }
+        if data not in scope_map:
+            await query.answer("Некорректный scope.", show_alert=False)
+            return
+        
+        scope = scope_map[data]
+        await query.message.delete()
+        await _show_task_list(context, chat_id, storage, internal_uid, tz, scope)
+        return
+
+    # --- Обработка фильтров ---
+    elif data.startswith("filter_"):
+        filter_map = {
+            "filter_all": "all",
+            "filter_study": "study",
+            "filter_work": "work", 
+            "filter_life": "life",
+            "filter_none": "none",
+        }
+        if data not in filter_map:
+            await query.answer("Некорректный фильтр.", show_alert=False)
+            return
+        
+        context.user_data[TASK_FILTER] = filter_map[data]
+        sc = context.user_data.get(TASK_SCOPE, "all")
+        await query.message.delete()
+        await _show_task_list(context, chat_id, storage, internal_uid, tz, sc)
+        return
+
+    # --- Обработка действий над задачей ---
+    elif data.startswith("task_done_"):
+        tid = int(data.split("_")[2])
+        await query.message.delete()
+        await storage.set_task_status(internal_uid, tid, TaskStatus.DONE)
+        jq = context.application.job_queue
+        if jq:
+            remove_all_task_jobs(jq, tid)
+        sc = context.user_data.get(TASK_SCOPE, "today")
+        await _show_task_list(context, chat_id, storage, internal_uid, tz, sc)
+        return
+
+    elif data.startswith("task_delete_"):
+        tid = int(data.split("_")[2])
+        await query.message.delete()
+        jq = context.application.job_queue
+        if jq:
+            remove_all_task_jobs(jq, tid)
+        await storage.delete_task(internal_uid, tid)
+        sc = context.user_data.get(TASK_SCOPE, "today")
+        await _show_task_list(context, chat_id, storage, internal_uid, tz, sc)
+        return
+
+    elif data.startswith("task_pause_"):
+        tid = int(data.split("_")[2])
+        await query.message.delete()
+        await storage.set_task_status(internal_uid, tid, TaskStatus.PAUSED)
+        jq = context.application.job_queue
+        if jq:
+            remove_all_task_jobs(jq, tid)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, tid)
+        return
+
+    elif data.startswith("task_resume_"):
+        tid = int(data.split("_")[2])
+        await query.message.delete()
+        await storage.set_task_status(internal_uid, tid, TaskStatus.PENDING)
+        t2 = await storage.get_task(internal_uid, tid)
+        if t2:
+            schedule_task_reminders(
+                context.application,
+                task=t2,
+                chat_id=chat_id,
+                internal_user_id=internal_uid,
+            )
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, tid)
+        return
+
+    elif data == "to_list":
+        await query.message.delete()
+        sc = context.user_data.get(TASK_SCOPE, "today")
+        await _show_task_list(context, chat_id, storage, internal_uid, tz, sc)
+        return
 
     if data.startswith("task_page_"):
         parts = data.split("_")
@@ -1073,6 +1212,138 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         filt = context.user_data.get(TASK_FILTER) or "all"
         tasks = apply_task_filter(tasks, filt)
         await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
+        return
+
+    # --- Обработка напоминаний ---
+    elif data.startswith("rem_"):
+        create = context.user_data.get(CREATE)
+        if not create or create.get("step") != "reminder":
+            await query.answer("Некорректный шаг.", show_alert=False)
+            return
+        
+        if data == "rem_back":
+            create["step"] = "due"
+            await query.message.edit_text(
+                "Шаг 3 · Дедлайн\nКогда дедлайн? Формат: 2024-12-31 23:59 или завтра 18:00",
+                reply_markup=kb.date_step_keyboard(),
+            )
+            return
+        
+        if data == "rem_on":
+            # Показываем клавиатуру с вариантами времени
+            await query.message.edit_text(
+                "Шаг 4 · Напоминания\nВыберите, когда напомнить о дедлайне.",
+                reply_markup=kb.reminder_time_keyboard(),
+            )
+            return
+        
+        if data == "rem_off":
+            # Выключаем все напоминания и переходим к названию
+            create["remind_week"] = 0
+            create["remind_day"] = 0
+            create["remind_hour"] = 0
+            create["remind_2hours"] = 0
+            create["remind_30min"] = 0
+            create["schedule_deadline"] = False
+            create["step"] = "title"
+            await query.message.edit_text(
+                "Теперь текст задачи — одним сообщением, что именно сделать.",
+                reply_markup=kb.date_step_keyboard(),
+            )
+            return
+        
+        # Обработка конкретных вариантов времени
+        rem_map = {
+            "rem_week": (1, 0, 0, 0, 0, True),
+            "rem_day": (0, 1, 0, 0, 0, True),
+            "rem_hour": (0, 0, 1, 0, 0, True),
+            "rem_2hours": (0, 0, 0, 2, 0, True),
+            "rem_30min": (0, 0, 0, 0, 30, True),
+            "rem_deadline": (0, 0, 0, 0, 0, True),
+        }
+        
+        if data not in rem_map:
+            await query.answer("Некорректное напоминание.", show_alert=False)
+            return
+        
+        rw, rd, rh, r2h, r30m, sched = rem_map[data]
+        create["remind_week"] = rw
+        create["remind_day"] = rd
+        create["remind_hour"] = rh
+        create["remind_2hours"] = r2h
+        create["remind_30min"] = r30m
+        create["schedule_deadline"] = sched
+        create["step"] = "urgency"
+        await query.message.edit_text(
+            "Насколько срочно?",
+            reply_markup=kb.create_urgency_keyboard(),
+        )
+        return
+
+    # --- Обработка срочности ---
+    elif data.startswith("urg_"):
+        create = context.user_data.get(CREATE)
+        if not create or create.get("step") != "urgency":
+            await query.answer("Некорректный шаг.", show_alert=False)
+            return
+        
+        urg_map = {
+            "urg_red": 2,
+            "urg_yellow": 1,
+            "urg_white": 0,
+        }
+        if data not in urg_map:
+            await query.answer("Некорректная срочность.", show_alert=False)
+            return
+        
+        uval = urg_map[data]
+        await query.message.delete()
+        due_at = create.get("due_at")
+        cat = create.get("category")
+        rw = int(create.get("remind_week", 0))
+        rd = int(create.get("remind_day", 0))
+        rh = int(create.get("remind_hour", 0))
+        r2h = int(create.get("remind_2hours", 0))
+        r30m = int(create.get("remind_30min", 0))
+        sched_dl = bool(create.get("schedule_deadline", True))
+
+        task = await storage.add_task(
+            internal_uid,
+            create["title_text"],
+            due_at,
+            uval,
+            category=cat,
+            remind_week=rw,
+            remind_day=rd,
+            remind_hour=rh,
+            remind_2hours=r2h,
+            remind_30min=r30m,
+        )
+        schedule_task_reminders(
+            context.application,
+            task=task,
+            chat_id=chat_id,
+            internal_user_id=internal_uid,
+        )
+        context.user_data.pop(CREATE, None)
+        _set_mode(context, "main")
+        
+        due = ""
+        if task.due_at:
+            due = f"\n📅 {format_dt_local(task.due_at, tz)}"
+        st = ""
+        if task.status == TaskStatus.PAUSED:
+            st = "\n🟡 На паузе"
+        cat_s = ""
+        if cat:
+            cat_s = f"\n🏷 {kb.category_human(cat)}"
+        await send_panel(
+            context,
+            chat_id,
+            f"✅ Задача №{task.id} сохранена{cat_s}{due}{st}\n"
+            f"⚡ {_urgency_word(uval)}",
+            kb.main_reply_keyboard(),
+        )
         return
 
     elif data == "to_main":

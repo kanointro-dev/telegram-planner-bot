@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from telegram import KeyboardButton, ReplyKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot.models import Task, TaskStatus
 
@@ -74,122 +74,161 @@ BTN_RESUME = "🟢 ▶️ Снова в работу"
 BTN_TO_LIST = "📘 К списку"
 
 
-def main_reply_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def main_reply_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_CREATE)],
-            [KeyboardButton(BTN_TASKS), KeyboardButton(BTN_RANDOM)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton("➕ Создать задачу", callback_data="create_task"),
+                InlineKeyboardButton("📋 Задачи", callback_data="show_tasks"),
+                InlineKeyboardButton("🎲 Случайная", callback_data="random_task"),
+            ]
+        ]
     )
 
 
-def category_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def category_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_CAT_STUDY), KeyboardButton(BTN_CAT_WORK)],
-            [KeyboardButton(BTN_CAT_LIFE), KeyboardButton(BTN_CAT_SKIP)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_CAT_STUDY, callback_data="cat_study"),
+                InlineKeyboardButton(BTN_CAT_WORK, callback_data="cat_work"),
+            ],
+            [
+                InlineKeyboardButton(BTN_CAT_LIFE, callback_data="cat_life"),
+                InlineKeyboardButton(BTN_CAT_SKIP, callback_data="cat_skip"),
+            ],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def tasks_scope_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def tasks_scope_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_TODAY), KeyboardButton(BTN_TOMORROW)],
-            [KeyboardButton(BTN_ALL)],
-            [KeyboardButton(BTN_ARCHIVE)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_TODAY, callback_data="scope_today"),
+                InlineKeyboardButton(BTN_TOMORROW, callback_data="scope_tomorrow"),
+            ],
+            [InlineKeyboardButton(BTN_ALL, callback_data="scope_all")],
+            [InlineKeyboardButton(BTN_ARCHIVE, callback_data="scope_archive")],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def tasks_list_keyboard() -> ReplyKeyboardMarkup:
+def tasks_list_keyboard() -> InlineKeyboardMarkup:
     """Упрощённая клавиатура — только кнопка выхода."""
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton(BTN_TO_MAIN)]],
-        resize_keyboard=True,
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")]]
     )
 
 
-def tasks_filter_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def tasks_filter_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_FIL_ALL), KeyboardButton(BTN_FIL_STUDY)],
-            [KeyboardButton(BTN_FIL_WORK), KeyboardButton(BTN_FIL_LIFE)],
-            [KeyboardButton(BTN_FIL_NONE)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_FIL_ALL, callback_data="filter_all"),
+                InlineKeyboardButton(BTN_FIL_STUDY, callback_data="filter_study"),
+            ],
+            [
+                InlineKeyboardButton(BTN_FIL_WORK, callback_data="filter_work"),
+                InlineKeyboardButton(BTN_FIL_LIFE, callback_data="filter_life"),
+            ],
+            [InlineKeyboardButton(BTN_FIL_NONE, callback_data="filter_none")],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def create_due_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def create_due_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_WITH_DUE), KeyboardButton(BTN_NO_DUE)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_WITH_DUE, callback_data="due_with"),
+                InlineKeyboardButton(BTN_NO_DUE, callback_data="due_without"),
+            ],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def date_step_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton(BTN_TO_MAIN)]],
-        resize_keyboard=True,
+def date_step_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")]]
     )
 
 
-def reminder_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def reminder_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_REM_ON), KeyboardButton(BTN_REM_OFF)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_REM_ON, callback_data="rem_on"),
+                InlineKeyboardButton(BTN_REM_OFF, callback_data="rem_off"),
+            ],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def reminder_time_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def reminder_time_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_REM_WEEK), KeyboardButton(BTN_REM_DAY)],
-            [KeyboardButton(BTN_REM_HOUR), KeyboardButton(BTN_REM_2HOURS), KeyboardButton(BTN_REM_30MIN)],
-            [KeyboardButton(BTN_REM_DEADLINE), KeyboardButton(BTN_REM_OFF)],
-            [KeyboardButton(BTN_REM_BACK), KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_REM_ON, callback_data="rem_on"),
+                InlineKeyboardButton(BTN_REM_OFF, callback_data="rem_off"),
+            ],
+            [
+                InlineKeyboardButton(BTN_REM_WEEK, callback_data="rem_week"),
+                InlineKeyboardButton(BTN_REM_DAY, callback_data="rem_day"),
+            ],
+            [
+                InlineKeyboardButton(BTN_REM_HOUR, callback_data="rem_hour"),
+                InlineKeyboardButton(BTN_REM_2HOURS, callback_data="rem_2hours"),
+                InlineKeyboardButton(BTN_REM_30MIN, callback_data="rem_30min"),
+            ],
+            [
+                InlineKeyboardButton(BTN_REM_DEADLINE, callback_data="rem_deadline"),
+                InlineKeyboardButton(BTN_REM_OFF, callback_data="rem_off"),
+            ],
+            [
+                InlineKeyboardButton(BTN_REM_BACK, callback_data="rem_back"),
+                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
+            ],
+        ]
     )
 
 
-def create_urgency_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
+def create_urgency_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_URG_RED), KeyboardButton(BTN_URG_YELLOW)],
-            [KeyboardButton(BTN_URG_WHITE)],
-            [KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_URG_RED, callback_data="urg_red"),
+                InlineKeyboardButton(BTN_URG_YELLOW, callback_data="urg_yellow"),
+            ],
+            [InlineKeyboardButton(BTN_URG_WHITE, callback_data="urg_white")],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+        ]
     )
 
 
-def task_actions_keyboard(task: Task) -> ReplyKeyboardMarkup:
+def task_actions_keyboard(task: Task) -> InlineKeyboardMarkup:
     row_mid = (
-        [KeyboardButton(BTN_RESUME)]
+        [InlineKeyboardButton(BTN_RESUME, callback_data=f"task_resume_{task.id}")]
         if task.status in (TaskStatus.PAUSED, TaskStatus.DONE)
-        else [KeyboardButton(BTN_PAUSE)]
+        else [InlineKeyboardButton(BTN_PAUSE, callback_data=f"task_pause_{task.id}")]
     )
-    return ReplyKeyboardMarkup(
+    return InlineKeyboardMarkup(
         [
-            [KeyboardButton(BTN_DONE), KeyboardButton(BTN_DELETE)],
+            [
+                InlineKeyboardButton(BTN_DONE, callback_data=f"task_done_{task.id}"),
+                InlineKeyboardButton(BTN_DELETE, callback_data=f"task_delete_{task.id}"),
+            ],
             row_mid,
-            [KeyboardButton(BTN_TO_LIST), KeyboardButton(BTN_TO_MAIN)],
-        ],
-        resize_keyboard=True,
+            [
+                InlineKeyboardButton(BTN_TO_LIST, callback_data="to_list"),
+                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
+            ],
+        ]
     )
 
 
