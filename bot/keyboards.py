@@ -174,10 +174,6 @@ def reminder_time_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(BTN_REM_ON, callback_data="rem_on"),
-                InlineKeyboardButton(BTN_REM_OFF, callback_data="rem_off"),
-            ],
-            [
                 InlineKeyboardButton(BTN_REM_WEEK, callback_data="rem_week"),
                 InlineKeyboardButton(BTN_REM_DAY, callback_data="rem_day"),
             ],
@@ -196,7 +192,6 @@ def reminder_time_keyboard() -> InlineKeyboardMarkup:
             ],
         ]
     )
-
 
 def create_urgency_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
