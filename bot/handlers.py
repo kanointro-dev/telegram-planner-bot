@@ -1082,7 +1082,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
 
-    # --- Обработка типа даты ---
+        # --- Обработка типа даты ---
     elif data in ("due_with", "due_without"):
         create = context.user_data.get(CREATE)
         if not create or create.get("step") != "due_type":
@@ -1098,6 +1098,11 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         else:  # due_without
             create["due_at"] = None
             create["step"] = "title"
+            # Очищаем дату
+            create.pop("dd", None)
+            create.pop("mm", None)
+            create.pop("hour", None)
+            create.pop("minute", None)
             await query.message.edit_text(
                 "Шаг 2 из 2 · Название задачи\nНапишите текст задачи.",
                 reply_markup=kb.date_step_keyboard(),
