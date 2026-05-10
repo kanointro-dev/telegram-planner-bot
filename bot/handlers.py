@@ -294,20 +294,51 @@ async def _show_task_detail(
     cat_line = ""
     if task.category:
         cat_line = f"🏷 Метка: {kb.category_human(task.category)}\n"
-    due = f"📅 Срок: {format_dt_local(task.due_at, tz)}" if task.due_at else "📅 Без даты"
+    
+    # Формируем строку срока и оставшегося времени
+    due = ""
+    remaining = ""
+    if task.due_at:
+        due = f"📅 Срок: {format_dt_local(task.due_at, tz)}"
+        # Вычисляем оставшееся время
+        now = datetime.now(tz)
+        if task.due_at > now:
+            delta = task.due_at - now
+            days = delta.days
+            hours = delta.seconds // 3600
+            minutes = (delta.seconds % 3600) // 60
+            
+            if days > 0:
+                remaining = f"⏳ Осталось: {days} дн. {hours} ч."
+            elif hours > 0:
+                remaining = f"⏳ Осталось: {hours} ч. {minutes} мин."
+            elif minutes > 0:
+                remaining = f"⏳ Осталось: {minutes} мин."
+            else:
+                remaining = "⏳ Осталось: меньше минуты"
+        elif task.due_at <= now and task.status != TaskStatus.DONE:
+            remaining = "⏰ Просрочено!"
+    else:
+        due = "📅 Без даты"
+    
+    # Статус задачи
     if task.status == TaskStatus.PAUSED:
         st = "\n⏸ На паузе"
     elif task.status == TaskStatus.DONE:
         st = "\n✅ Готово"
     else:
         st = ""
+    
     title_html = html.escape(task.title.replace("\n", " "))
+    
+    # Собираем текст
     text = (
         f"📌 Задача №{task.id}\n\n"
         f"{cat_line}"
         f"{u} Срочность: {_urgency_word(task.priority)}\n\n"
         f"<b>{title_html}</b>\n\n"
-        f"{due}{st}\n\n"
+        f"{due}\n"
+        f"{remaining}{st}\n\n"
         "--- Действия ниже ---"
     )
     await send_panel_html(context, chat_id, text, kb.task_actions_keyboard(task))
