@@ -138,6 +138,9 @@ async def _tasks_for_scope(
         day = datetime.now(tz).date() + timedelta(days=1)
         tasks = await storage.list_tasks_for_day(uid, day, include_done=False)
         title = "Завтра (по дедлайну)"
+    elif scope == "archive":
+        tasks = await storage.list_done_tasks(uid, 80)
+        title = "Готовые задачи"
     else:
         tasks = await storage.list_all_active(uid, 80)
         title = "Все активные"
@@ -271,7 +274,12 @@ async def _show_task_detail(
     if task.category:
         cat_line = f"🏷 Метка: {kb.category_human(task.category)}\n"
     due = f"\n📅 Срок: {format_dt_local(task.due_at, tz)}" if task.due_at else "\n📅 Без даты"
-    st = "\n⏸ На паузе" if task.status == TaskStatus.PAUSED else ""
+    if task.status == TaskStatus.PAUSED:
+        st = "\n⏸ На паузе"
+    elif task.status == TaskStatus.DONE:
+        st = "\n✅ Готово"
+    else:
+        st = ""
     text = (
         f"📌 Задача №{task.id}\n"
         f"{cat_line}"
@@ -288,6 +296,8 @@ def _scope_from_button(text: str) -> Optional[str]:
         return "tmrw"
     if text == kb.BTN_ALL:
         return "all"
+    if text == kb.BTN_ARCHIVE:
+        return "archive"
     return None
 
 

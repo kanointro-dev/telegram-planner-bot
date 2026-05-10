@@ -301,6 +301,19 @@ class SqliteStorage:
         rows = await cur.fetchall()
         return [self._row_to_task(r) for r in rows]
 
+    async def list_done_tasks(self, internal_user_id: int, limit: int) -> List[Task]:
+        cur = await self._db.execute(
+            """
+            SELECT * FROM tasks
+            WHERE user_id = ? AND status = 'done'
+            ORDER BY (due_at IS NULL), due_at ASC, priority DESC, id
+            LIMIT ?
+            """,
+            (internal_user_id, limit),
+        )
+        rows = await cur.fetchall()
+        return [self._row_to_task(r) for r in rows]
+
     async def list_schedulable_tasks_from(
         self, from_utc: datetime
     ) -> List[Tuple[Task, int]]:

@@ -28,6 +28,7 @@ CAT_FROM_BTN = {
 BTN_TODAY = "📅 Сегодня"
 BTN_TOMORROW = "⏩ Завтра"
 BTN_ALL = "📋 Все даты"
+BTN_ARCHIVE = "📦 Архив"
 BTN_TO_MAIN = "🏠 В меню"
 
 # —— Фильтр в списке ——
@@ -99,6 +100,7 @@ def tasks_scope_keyboard() -> ReplyKeyboardMarkup:
         [
             [KeyboardButton(BTN_TODAY), KeyboardButton(BTN_TOMORROW)],
             [KeyboardButton(BTN_ALL)],
+            [KeyboardButton(BTN_ARCHIVE)],
             [KeyboardButton(BTN_TO_MAIN)],
         ],
         resize_keyboard=True,
@@ -178,7 +180,7 @@ def create_urgency_keyboard() -> ReplyKeyboardMarkup:
 def task_actions_keyboard(task: Task) -> ReplyKeyboardMarkup:
     row_mid = (
         [KeyboardButton(BTN_RESUME)]
-        if task.status == TaskStatus.PAUSED
+        if task.status in (TaskStatus.PAUSED, TaskStatus.DONE)
         else [KeyboardButton(BTN_PAUSE)]
     )
     return ReplyKeyboardMarkup(
