@@ -354,6 +354,27 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     remember_bot_message(context, msg.message_id)
 
+# Команда для очистки своих данных
+async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_message or not update.effective_user:
+        return
+    
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    
+    storage = _storage(context)
+    internal_uid = await storage.ensure_user(user_id)
+    
+    # Удаляем все задачи пользователя
+    await storage._db.execute("DELETE FROM tasks WHERE user_id = $1", internal_uid)
+    await storage._db.execute("DELETE FROM time_entries WHERE user_id = $1", internal_uid)
+    
+    await send_panel(
+        context,
+        chat_id,
+        "✅ Все твои задачи и таймеры удалены!",
+        kb.main_reply_keyboard(),
+    )
 
 async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_message or not update.effective_user or not update.message:
@@ -1039,7 +1060,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             "🏠 Главное меню",
             kb.main_reply_keyboard(),
         )
-        
+
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_message or not update.effective_user:
         return

@@ -72,6 +72,9 @@ def main() -> None:
 
     from telegram.ext import CallbackQueryHandler
     from bot.handlers import handle_task_callback
+    from bot.handlers import cmd_reset
+
+    application.add_handler(CommandHandler("reset", cmd_reset))
     
     application.add_handler(CallbackQueryHandler(handle_task_callback))
 
