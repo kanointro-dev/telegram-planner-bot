@@ -861,6 +861,8 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             rw = int(create.get("remind_week", 0))
             rd = int(create.get("remind_day", 0))
             rh = int(create.get("remind_hour", 0))
+            r2h = int(create.get("remind_2hours", 0))
+            r30m = int(create.get("remind_30min", 0))
             sched_dl = bool(create.get("schedule_deadline", True))
 
             task = await storage.add_task(
