@@ -60,8 +60,11 @@ async def send_panel_html(
 
 
 async def try_delete_user_message(
-    context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: Optional[int]
+    context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: Optional[int], chat_type: Optional[str] = None
 ) -> None:
+    # Не удаляем сообщения в группах
+    if chat_type in ["group", "supergroup"]:
+        return
     if message_id is None:
         return
     try:

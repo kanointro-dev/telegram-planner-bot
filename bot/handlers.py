@@ -440,6 +440,13 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.effective_message or not update.effective_user or not update.message:
         return
     text = (update.message.text or "").strip()
+    
+    # Если сообщение из группы — не удаляем и не обрабатываем команды бота
+    if update.effective_chat.type in ["group", "supergroup"]:
+        # Можно оставить только команды через /
+        if not text.startswith("/"):
+            return
+    
     chat_id = update.effective_chat.id
     storage = _storage(context)
     uid = await storage.ensure_user(update.effective_user.id)
@@ -448,7 +455,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     umid = update.message.message_id
 
     if text == kb.BTN_TO_MAIN:
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         _reset_flow(context)
         _set_mode(context, "main")
         await send_panel(
@@ -461,7 +468,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     create_block = context.user_data.get(CREATE)
     if create_block and text in (kb.BTN_CREATE, kb.BTN_TASKS, kb.BTN_RANDOM):
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         await send_panel(
             context,
             chat_id,
@@ -481,19 +488,19 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
         task = await storage.get_task(uid, tid)
         if not task:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             sc = context.user_data.get(TASK_SCOPE, "today")
             await _show_task_list(context, chat_id, storage, uid, tz, sc)
             return
 
         if text == kb.BTN_TO_LIST:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             sc = context.user_data.get(TASK_SCOPE, "today")
             await _show_task_list(context, chat_id, storage, uid, tz, sc)
             return
 
         if text == kb.BTN_DONE:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await storage.set_task_status(uid, tid, TaskStatus.DONE)
             jq = context.application.job_queue
             if jq:
@@ -503,7 +510,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
         if text == kb.BTN_DELETE:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             jq = context.application.job_queue
             if jq:
                 remove_all_task_jobs(jq, tid)
@@ -513,7 +520,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
         if text == kb.BTN_PAUSE and task.status != TaskStatus.PAUSED:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await storage.set_task_status(uid, tid, TaskStatus.PAUSED)
             jq = context.application.job_queue
             if jq:
@@ -522,7 +529,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
         if text == kb.BTN_RESUME and task.status == TaskStatus.PAUSED:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await storage.set_task_status(uid, tid, TaskStatus.PENDING)
             t2 = await storage.get_task(uid, tid)
             if t2:
@@ -536,7 +543,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await _show_task_detail(context, chat_id, storage, uid, tz, tid)
             return
 
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         await send_panel(
             context,
             chat_id,
@@ -550,7 +557,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         scope_btn = _scope_from_button(text)
         if scope_btn:
             await _show_task_list(context, chat_id, storage, uid, tz, scope_btn)
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             return
         
         if text == kb.BTN_FILTER:
@@ -561,7 +568,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "Выберите фильтр по метке.",
                 kb.tasks_filter_keyboard(),
             )
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             return
         
         # Сначала парсим номер, потом удаляем сообщение
@@ -569,13 +576,13 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         order: List[int] = context.user_data.get(TASK_ORDER) or []
         
         if idx is not None and 1 <= idx <= len(order):
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await _show_task_detail(
                 context, chat_id, storage, uid, tz, order[idx - 1]
             )
             return
         
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         await send_panel(
             context,
             chat_id,
@@ -586,7 +593,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     if mode == "tasks_filter":
         if text == kb.BTN_TO_MAIN:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             _set_mode(context, "main")
             await send_panel(
                 context,
@@ -598,10 +605,10 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if text in FILTERS_FROM_BTN:
             context.user_data[TASK_FILTER] = FILTERS_FROM_BTN[text]
             sc = context.user_data.get(TASK_SCOPE, "all")
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await _show_task_list(context, chat_id, storage, uid, tz, sc)
             return
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         await send_panel(
             context,
             chat_id,
@@ -613,10 +620,10 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if mode == "tasks_scope":
         scope_btn = _scope_from_button(text)
         if scope_btn:
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await _show_task_list(context, chat_id, storage, uid, tz, scope_btn)
             return
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         await send_panel(
             context,
             chat_id,
@@ -632,7 +639,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         if step == "cat":
             if text not in kb.CAT_FROM_BTN:
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -642,7 +649,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             create["category"] = kb.CAT_FROM_BTN[text]
             create["step"] = "due_type"
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await send_panel(
                 context,
                 chat_id,
@@ -654,7 +661,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if step == "due_type":
             if text == kb.BTN_WITH_DUE:
                 create["step"] = "day"
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -669,7 +676,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 create["remind_day"] = 0
                 create["remind_hour"] = 0
                 create["step"] = "title"
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -677,7 +684,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     kb.date_step_keyboard(),
                 )
                 return
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await send_panel(
                 context,
                 chat_id,
@@ -821,7 +828,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if step == "reminder":
             if text == kb.BTN_REM_BACK:
                 create["step"] = "due"
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -830,7 +837,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 )
                 return
             if text not in REMINDER_FROM_BTN:
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -846,7 +853,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             create["remind_30min"] = r30m
             create["schedule_deadline"] = sched
             create["step"] = "title"
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await send_panel(
                 context,
                 chat_id,
@@ -858,7 +865,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if step == "title":
             title = text.strip()
             if not title:
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -868,7 +875,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             create["title_text"] = title
             create["step"] = "urgency"
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             await send_panel(
                 context,
                 chat_id,
@@ -879,7 +886,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         if step == "urgency":
             if text not in kb.URGENCY_BY_LABEL:
-                await try_delete_user_message(context, chat_id, umid)
+                await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
                 await send_panel(
                     context,
                     chat_id,
@@ -888,7 +895,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 )
                 return
             uval = kb.URGENCY_BY_LABEL[text]
-            await try_delete_user_message(context, chat_id, umid)
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
             due_at = create.get("due_at")
             cat = create.get("category")
             rw = int(create.get("remind_week", 0))
@@ -936,7 +943,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # --- Старт ---
     if text == kb.BTN_CREATE:
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         context.user_data[CREATE] = {"step": "cat"}
         _set_mode(context, "create_cat")
         await send_panel(
@@ -948,7 +955,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     if text == kb.BTN_TASKS:
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         context.user_data[TASK_FILTER] = "all"
         _set_mode(context, "tasks_scope")
         context.user_data.pop(TASK_ORDER, None)
@@ -961,7 +968,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     if text == kb.BTN_RANDOM:
-        await try_delete_user_message(context, chat_id, umid)
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
         day = datetime.now(tz).date()
         tasks = await storage.list_tasks_for_day(uid, day, include_done=False)
         if not tasks:
@@ -989,7 +996,7 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         _set_mode(context, "main")
         return
 
-    await try_delete_user_message(context, chat_id, umid)
+    await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
     await send_panel(
         context,
         chat_id,
