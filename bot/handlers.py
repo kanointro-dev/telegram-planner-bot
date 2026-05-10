@@ -1260,11 +1260,16 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
 
-    # --- Обработка срочности ---
+        # --- Обработка срочности ---
     elif data.startswith("urg_"):
         create = context.user_data.get(CREATE)
         if not create or create.get("step") != "urgency":
             await query.answer("Некорректный шаг.", show_alert=False)
+            return
+        
+        # Проверяем, есть ли текст задачи
+        if "title_text" not in create:
+            await query.answer("Сначала введите текст задачи.", show_alert=False)
             return
         
         urg_map = {
