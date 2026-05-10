@@ -437,11 +437,12 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
     if not update.effective_message or not update.effective_user or not update.message:
         return
     text = (update.message.text or "").strip()
     
-        # Если сообщение из группы — не удаляем и не обрабатываем команды бота
+         # Если сообщение из группы — не удаляем и не обрабатываем команды бота
     if update.effective_chat.type in ["group", "supergroup"]:
         # Разрешаем обработку, если есть активный процесс создания задачи
         is_creating = context.user_data.get("ui_create") is not None
@@ -1215,7 +1216,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
         return
 
-    # --- Обработка напоминаний ---
+        # --- Обработка напоминаний ---
     elif data.startswith("rem_"):
         create = context.user_data.get(CREATE)
         if not create or create.get("step") != "reminder":
@@ -1231,7 +1232,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             "rem_2hours": (0, 0, 0, 2, 0, True),
             "rem_30min": (0, 0, 0, 0, 30, True),
             "rem_deadline": (0, 0, 0, 0, 0, True),
-            "rem_back": None,  # специальный случай
+            "rem_back": None,
         }
         
         if data == "rem_back":
@@ -1253,21 +1254,20 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         create["remind_2hours"] = r2h
         create["remind_30min"] = r30m
         create["schedule_deadline"] = sched
-        create["step"] = "urgency"
+        create["step"] = "title"
         await query.message.edit_text(
-            "Насколько срочно?",
-            reply_markup=kb.create_urgency_keyboard(),
+            "Теперь текст задачи — одним сообщением, что именно сделать.",
+            reply_markup=kb.date_step_keyboard(),
         )
         return
 
-        # --- Обработка срочности ---
+    # --- Обработка срочности ---
     elif data.startswith("urg_"):
         create = context.user_data.get(CREATE)
         if not create or create.get("step") != "urgency":
             await query.answer("Некорректный шаг.", show_alert=False)
             return
         
-        # Проверяем, есть ли текст задачи
         if "title_text" not in create:
             await query.answer("Сначала введите текст задачи.", show_alert=False)
             return
@@ -1309,24 +1309,18 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             task=task,
             chat_id=chat_id,
             internal_user_id=internal_uid,
+            schedule_deadline=sched_dl and due_at is not None,
         )
         context.user_data.pop(CREATE, None)
         _set_mode(context, "main")
         
-        due = ""
-        if task.due_at:
-            due = f"\n📅 {format_dt_local(task.due_at, tz)}"
-        st = ""
-        if task.status == TaskStatus.PAUSED:
-            st = "\n🟡 На паузе"
-        cat_s = ""
-        if cat:
-            cat_s = f"\n🏷 {kb.category_human(cat)}"
+        due = f"\n📅 {format_dt_local(task.due_at, tz)}" if task.due_at else ""
+        st = "\n🟡 На паузе" if task.status == TaskStatus.PAUSED else ""
+        cat_s = f"\n🏷 {kb.category_human(cat)}" if cat else ""
         await send_panel(
             context,
             chat_id,
-            f"✅ Задача №{task.id} сохранена{cat_s}{due}{st}\n"
-            f"⚡ {_urgency_word(uval)}",
+            f"✅ Задача №{task.id} сохранена{cat_s}{due}{st}\n⚡ {_urgency_word(uval)}",
             kb.main_reply_keyboard(),
         )
         return
