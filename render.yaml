@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: telegram-planner-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m bot.main
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DEFAULT_TIMEZONE
+        value: Europe/Moscow
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/data/planner.db
