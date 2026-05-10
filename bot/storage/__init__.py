@@ -1,4 +1,4 @@
 from bot.storage.protocol import Storage
-from bot.storage.sqlite_store import SqliteStorage
+from bot.storage.postgres_store import PostgresStorage
 
 __all__ = ["Storage", "PostgresStorage"]

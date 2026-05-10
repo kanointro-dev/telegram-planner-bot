@@ -26,8 +26,13 @@ class PostgresStorage:
 
     async def connect(self) -> None:
         """Create connection pool and initialize schema."""
-        self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
-        await self._create_tables()
+        print("DEBUG: Connecting to PostgreSQL...", flush=True)
+        try:
+            self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
+            await self._create_tables()
+        except Exception as e:
+            print(f"FATAL: {e}", flush=True)
+            raise
 
     async def close(self) -> None:
         """Close all connections in the pool."""

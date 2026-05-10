@@ -29,12 +29,14 @@ from bot.storage.postgres_store import PostgresStorage
 
 logging.basicConfig(
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 logger = logging.getLogger(__name__)
 
 
 async def _post_init(application: Application) -> None:
+    print("DEBUG: Starting _post_init", flush=True)
+    print(f"DEBUG: DATABASE_URL present: {os.environ.get('DATABASE_URL') is not None}", flush=True)
     storage = PostgresStorage(os.environ["DATABASE_URL"], config.DEFAULT_TIMEZONE)
     await storage.connect()
     application.bot_data["storage"] = storage
@@ -102,6 +104,7 @@ def main() -> None:
         server.serve_forever()
 
     # Запускаем health-сервер в отдельном потоке
+    print("DEBUG: Starting health check server...", flush=True)
     health_thread = threading.Thread(target=run_health, daemon=True)
     health_thread.start()
     print(f"✅ Health check server started on port {os.environ.get('PORT', 10000)}")
