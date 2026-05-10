@@ -258,8 +258,6 @@ async def _show_tasks_page(
     if nav_row:
         buttons.append(nav_row)
     
-    buttons.append([InlineKeyboardButton("🏠 В меню", callback_data="to_main")])
-    
     inline_kb = InlineKeyboardMarkup(buttons)
     
     msg = await context.bot.send_message(
