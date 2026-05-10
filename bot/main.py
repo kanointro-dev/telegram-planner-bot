@@ -80,6 +80,26 @@ def main() -> None:
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
+    # Запускаем health-сервер в отдельном потоке
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'Bot is alive')
+        def log_message(self, format, *args):
+            pass
+    
+    def run_health_server():
+        server = HTTPServer(('0.0.0.0', int(os.environ.get('PORT', 10000))), HealthHandler)
+        server.serve_forever()
+    
+    health_thread = threading.Thread(target=run_health_server, daemon=True)
+    health_thread.start()
+    
 # Простой HTTP-сервер для health check и пинга
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
@@ -90,6 +110,9 @@ class HealthHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
         self.wfile.write(b'Bot is alive')
+    
+    def log_message(self, format, *args):
+        pass  # Отключаем логи health check
 
 def run_health_server():
     server = HTTPServer(('0.0.0.0', 10000), HealthHandler)
