@@ -363,11 +363,21 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     
     storage = _storage(context)
-    internal_uid = await storage.ensure_user(user_id)
     
-    # Удаляем все задачи пользователя
-    await storage._db.execute("DELETE FROM tasks WHERE user_id = $1", internal_uid)
-    await storage._db.execute("DELETE FROM time_entries WHERE user_id = $1", internal_uid)
+    # Получаем internal_user_id
+    cur = await storage._db.execute("SELECT id FROM users WHERE telegram_user_id = ?", (user_id,))
+    row = await cur.fetchone()
+    
+    if not row:
+        await send_panel(context, chat_id, "❌ У тебя нет задач для удаления.", kb.main_reply_keyboard())
+        return
+    
+    internal_uid = row[0]
+    
+    # Удаляем задачи (SQLite использует ? вместо $1)
+    await storage._db.execute("DELETE FROM tasks WHERE user_id = ?", (internal_uid,))
+    await storage._db.execute("DELETE FROM time_entries WHERE user_id = ?", (internal_uid,))
+    await storage._db.commit()
     
     await send_panel(
         context,
