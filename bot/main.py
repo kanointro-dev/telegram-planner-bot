@@ -81,31 +81,32 @@ def main() -> None:
     
     application.add_handler(CallbackQueryHandler(handle_task_callback))
 
-    health_port = int(os.environ.get("PORT", 10000))
-    health_thread = threading.Thread(
-        target=run_health_server,
-        args=(health_port,),
-        daemon=True,
-    )
+    # Health check server
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            # Обрабатываем любой путь (и /, и /health, и любой другой)
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'Bot is alive')
+        
+        def log_message(self, format, *args):
+            pass  # Отключаем логи health check
+
+    def run_health():
+        port = int(os.environ.get('PORT', 10000))
+        server = HTTPServer(('0.0.0.0', port), HealthHandler)
+        server.serve_forever()
+
+    # Запускаем health-сервер в отдельном потоке
+    health_thread = threading.Thread(target=run_health, daemon=True)
     health_thread.start()
+    print(f"✅ Health check server started on port {os.environ.get('PORT', 10000)}")
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-class HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b'Bot is alive')
-
-    def log_message(self, format, *args):
-        pass  # Отключаем логи health check
-
-
-def run_health_server(port: int) -> None:
-    server = HTTPServer(('0.0.0.0', port), HealthHandler)
-    server.serve_forever()
 
 
 if __name__ == "__main__":
