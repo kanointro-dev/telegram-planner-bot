@@ -441,10 +441,11 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     text = (update.message.text or "").strip()
     
-    # Если сообщение из группы — не удаляем и не обрабатываем команды бота
+        # Если сообщение из группы — не удаляем и не обрабатываем команды бота
     if update.effective_chat.type in ["group", "supergroup"]:
-        # Можно оставить только команды через /
-        if not text.startswith("/"):
+        # Разрешаем обработку, если есть активный процесс создания задачи
+        is_creating = context.user_data.get("ui_create") is not None
+        if not is_creating and not text.startswith("/"):
             return
     
     chat_id = update.effective_chat.id
@@ -1221,6 +1222,18 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.answer("Некорректный шаг.", show_alert=False)
             return
         
+        rem_map = {
+            "rem_on": (0, 0, 0, 0, 0, True),
+            "rem_off": (0, 0, 0, 0, 0, False),
+            "rem_week": (1, 0, 0, 0, 0, True),
+            "rem_day": (0, 1, 0, 0, 0, True),
+            "rem_hour": (0, 0, 1, 0, 0, True),
+            "rem_2hours": (0, 0, 0, 2, 0, True),
+            "rem_30min": (0, 0, 0, 0, 30, True),
+            "rem_deadline": (0, 0, 0, 0, 0, True),
+            "rem_back": None,  # специальный случай
+        }
+        
         if data == "rem_back":
             create["step"] = "due"
             await query.message.edit_text(
@@ -1229,40 +1242,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         
-        if data == "rem_on":
-            # Показываем клавиатуру с вариантами времени
-            await query.message.edit_text(
-                "Шаг 4 · Напоминания\nВыберите, когда напомнить о дедлайне.",
-                reply_markup=kb.reminder_time_keyboard(),
-            )
-            return
-        
-        if data == "rem_off":
-            # Выключаем все напоминания и переходим к названию
-            create["remind_week"] = 0
-            create["remind_day"] = 0
-            create["remind_hour"] = 0
-            create["remind_2hours"] = 0
-            create["remind_30min"] = 0
-            create["schedule_deadline"] = False
-            create["step"] = "title"
-            await query.message.edit_text(
-                "Теперь текст задачи — одним сообщением, что именно сделать.",
-                reply_markup=kb.date_step_keyboard(),
-            )
-            return
-        
-        # Обработка конкретных вариантов времени
-        rem_map = {
-            "rem_week": (1, 0, 0, 0, 0, True),
-            "rem_day": (0, 1, 0, 0, 0, True),
-            "rem_hour": (0, 0, 1, 0, 0, True),
-            "rem_2hours": (0, 0, 0, 2, 0, True),
-            "rem_30min": (0, 0, 0, 0, 30, True),
-            "rem_deadline": (0, 0, 0, 0, 0, True),
-        }
-        
-        if data not in rem_map:
+        if data not in rem_map or rem_map[data] is None:
             await query.answer("Некорректное напоминание.", show_alert=False)
             return
         
