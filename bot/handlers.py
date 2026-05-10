@@ -1413,6 +1413,90 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
         return
 
+    # --- Редактирование: выбор срочности ---
+    elif data.startswith("urg_") and context.user_data.get("edit_step") == "waiting_priority":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        urg_map = {"urg_red": 2, "urg_yellow": 1, "urg_white": 0}
+        if data not in urg_map:
+            await query.answer("Некорректная срочность.", show_alert=False)
+            return
+        
+        await storage.update_task_field(internal_uid, edit_id, "priority", urg_map[data])
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Срочность обновлена!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+
+    # --- Редактирование: выбор категории ---
+    elif data.startswith("cat_") and context.user_data.get("edit_step") == "waiting_category":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        cat_map = {"cat_study": "study", "cat_work": "work", "cat_life": "life", "cat_skip": None}
+        if data not in cat_map:
+            await query.answer("Некорректная категория.", show_alert=False)
+            return
+        
+        await storage.update_task_field(internal_uid, edit_id, "category", cat_map[data])
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Метка обновлена!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+
+    # --- Редактирование: выбор напоминаний ---
+    elif data.startswith("rem_") and context.user_data.get("edit_step") == "waiting_reminder":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        rem_map = {
+            "rem_week": (1, 0, 0, 0, 0, True),
+            "rem_day": (0, 1, 0, 0, 0, True),
+            "rem_hour": (0, 0, 1, 0, 0, True),
+            "rem_2hours": (0, 0, 0, 2, 0, True),
+            "rem_30min": (0, 0, 0, 0, 30, True),
+            "rem_deadline": (0, 0, 0, 0, 0, True),
+            "rem_off": (0, 0, 0, 0, 0, False),
+        }
+        
+        if data == "rem_back":
+            await query.message.edit_text("🔔 Выберите настройки напоминаний:", reply_markup=kb.reminder_time_keyboard())
+            return
+        
+        if data not in rem_map:
+            await query.answer("Некорректное напоминание.", show_alert=False)
+            return
+        
+        rw, rd, rh, r2h, r30m, sched = rem_map[data]
+        await storage.update_task_field(internal_uid, edit_id, "remind_week", rw)
+        await storage.update_task_field(internal_uid, edit_id, "remind_day", rd)
+        await storage.update_task_field(internal_uid, edit_id, "remind_hour", rh)
+        await storage.update_task_field(internal_uid, edit_id, "remind_2hours", r2h)
+        await storage.update_task_field(internal_uid, edit_id, "remind_30min", r30m)
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Настройки напоминаний обновлены!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+
         # --- Обработка напоминаний ---
     elif data.startswith("rem_"):
         create = context.user_data.get(CREATE)
