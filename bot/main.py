@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -79,31 +81,16 @@ def main() -> None:
     
     application.add_handler(CallbackQueryHandler(handle_task_callback))
 
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-    # Запускаем health-сервер в отдельном потоке
-    import threading
-    from http.server import HTTPServer, BaseHTTPRequestHandler
-    
-    class HealthHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b'Bot is alive')
-        def log_message(self, format, *args):
-            pass
-    
-    def run_health_server():
-        server = HTTPServer(('0.0.0.0', int(os.environ.get('PORT', 10000))), HealthHandler)
-        server.serve_forever()
-    
-    health_thread = threading.Thread(target=run_health_server, daemon=True)
+    health_port = int(os.environ.get("PORT", 10000))
+    health_thread = threading.Thread(
+        target=run_health_server,
+        args=(health_port,),
+        daemon=True,
+    )
     health_thread.start()
 
-# Простой HTTP-сервер для health check и пинга
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -111,17 +98,15 @@ class HealthHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
         self.wfile.write(b'Bot is alive')
-    
+
     def log_message(self, format, *args):
         pass  # Отключаем логи health check
 
-def run_health_server():
-    server = HTTPServer(('0.0.0.0', 10000), HealthHandler)
+
+def run_health_server(port: int) -> None:
+    server = HTTPServer(('0.0.0.0', port), HealthHandler)
     server.serve_forever()
 
-# Запускаем health-сервер в отдельном потоке
-health_thread = threading.Thread(target=run_health_server, daemon=True)
-health_thread.start()
 
 if __name__ == "__main__":
     main()

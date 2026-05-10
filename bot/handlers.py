@@ -372,13 +372,25 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send_panel(context, chat_id, "❌ У тебя нет задач для удаления.", kb.main_reply_keyboard())
         return
     
-    internal_uid = row[0]
-    
+    internal_uid = int(row[0])
+
+    jq = context.application.job_queue
+    if jq:
+        cur = await storage._db.execute(
+            "SELECT id FROM tasks WHERE user_id = ?",
+            (internal_uid,),
+        )
+        rows = await cur.fetchall()
+        for task_row in rows:
+            remove_all_task_jobs(jq, int(task_row[0]))
+
     # Удаляем задачи (SQLite использует ? вместо $1)
     await storage._db.execute("DELETE FROM tasks WHERE user_id = ?", (internal_uid,))
     await storage._db.execute("DELETE FROM time_entries WHERE user_id = ?", (internal_uid,))
     await storage._db.commit()
-    
+    _reset_flow(context)
+    _set_mode(context, "main")
+
     await send_panel(
         context,
         chat_id,
@@ -936,36 +948,47 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 # --- Обработчик inline-кнопок ---
 async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not query or not query.data or not query.message:
+        return
+
     await query.answer()
-    
+
     data = query.data
-    chat_id = query.message.chat_id
+    chat_id = query.message.chat.id
     storage = _storage(context)
     uid = query.from_user.id
     tz = _tz(context)
-    
+
     internal_uid = await storage.ensure_user(uid)
-    
+
     if data.startswith("task_page_"):
         parts = data.split("_")
+        if len(parts) != 4:
+            await query.answer("Некорректный выбор.", show_alert=False)
+            return
+
         page = int(parts[2])
         local_idx = int(parts[3])
-        
+
         all_tasks_ids = context.user_data.get(TASK_ORDER) or []
         global_idx = page * TASKS_PER_PAGE + (local_idx - 1)
-        
+
         if 0 <= global_idx < len(all_tasks_ids):
             task_id = all_tasks_ids[global_idx]
             try:
                 await query.message.delete()
-            except:
+            except Exception:
                 pass
             await _show_task_detail(context, chat_id, storage, internal_uid, tz, task_id)
-    
+            return
+
+        await query.answer("Список задач устарел, откройте его заново.", show_alert=False)
+        return
+
     elif data.startswith("task_prev_"):
         old_page = int(data.split("_")[2])
         context.user_data[TASK_PAGE] = old_page - 1
-        
+
         await query.message.delete()
         tasks, title = await _tasks_for_scope(
             storage, internal_uid, tz, context.user_data.get(TASK_SCOPE, "all")
@@ -973,11 +996,12 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         filt = context.user_data.get(TASK_FILTER) or "all"
         tasks = apply_task_filter(tasks, filt)
         await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
-    
+        return
+
     elif data.startswith("task_next_"):
         old_page = int(data.split("_")[2])
         context.user_data[TASK_PAGE] = old_page + 1
-        
+
         await query.message.delete()
         tasks, title = await _tasks_for_scope(
             storage, internal_uid, tz, context.user_data.get(TASK_SCOPE, "all")
@@ -985,7 +1009,8 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         filt = context.user_data.get(TASK_FILTER) or "all"
         tasks = apply_task_filter(tasks, filt)
         await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
-    
+        return
+
     elif data == "to_main":
         _reset_flow(context)
         _set_mode(context, "main")
@@ -996,6 +1021,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             "🏠 Главное меню",
             kb.main_reply_keyboard(),
         )
+        return
 
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_message or not update.effective_user:

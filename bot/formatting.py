@@ -33,6 +33,7 @@ def format_tasks_monospace_block(
     footer_lines: List[str],
 ) -> str:
     """Обычный текст с HTML-жирной датой."""
+    heading = html.escape(heading)
     lines = [heading, ""]
     
     for i, t in enumerate(tasks, start=1):
@@ -46,10 +47,10 @@ def format_tasks_monospace_block(
         else:
             due_text = ""
         
-        title = t.title.replace("\n", " ")
-        # Обрезаем слишком длинные названия (больше 50 символов)
-        if len(title) > 50:
-            title = title[:47] + "..."
+        raw_title = t.title.replace("\n", " ")
+        if len(raw_title) > 50:
+            raw_title = raw_title[:47] + "..."
+        title = html.escape(raw_title)
         lines.append(f"{i}. {u}{due_text} {title}")
     
     lines.append("")
@@ -70,9 +71,10 @@ def format_tasks_monospace_block(
                 due_text = " ⏸ пауза"
             else:
                 due_text = ""
-            title = t.title.replace("\n", " ")
-            if len(title) > 50:
-                title = title[:47] + "..."
+            raw_title = t.title.replace("\n", " ")
+            if len(raw_title) > 50:
+                raw_title = raw_title[:47] + "..."
+            title = html.escape(raw_title)
             lines.append(f"{i}. {u}{due_text} {title}")
         lines.append("")
         lines.append(f"⚠️ Показаны первые 15 задач из {len(tasks)}")
