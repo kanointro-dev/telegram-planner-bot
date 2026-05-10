@@ -638,7 +638,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         if step == "day":
             if not text.isdigit():
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -648,7 +647,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             d = int(text)
             if not 1 <= d <= 31:
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -658,7 +656,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             create["dd"] = d
             create["step"] = "month"
-            await try_delete_user_message(context, chat_id, umid)
             await send_panel(
                 context,
                 chat_id,
@@ -669,7 +666,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         if step == "month":
             if not text.isdigit():
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -679,7 +675,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             m = int(text)
             if not 1 <= m <= 12:
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -690,7 +685,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             create["mm"] = m
             d = int(create["dd"])
             if not _valid_ymd(datetime.now(tz).year, m, d) and not (m == 2 and d == 29):
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -699,7 +693,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 )
                 return
             create["step"] = "time"
-            await try_delete_user_message(context, chat_id, umid)
             await send_panel(
                 context,
                 chat_id,
@@ -734,7 +727,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             
             # Валидация
             if hh is None or mm is None or not (0 <= hh <= 23 and 0 <= mm <= 59):
-                await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
@@ -751,7 +743,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     while not _valid_ymd(y, m, d):
                         y += 1
                 else:
-                    await try_delete_user_message(context, chat_id, umid)
                     await send_panel(
                         context,
                         chat_id,
@@ -769,7 +760,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 due_local = datetime(y, m, d, hh, mm, tzinfo=tz)
             create["due_at"] = due_local
             create["step"] = "reminder"
-            await try_delete_user_message(context, chat_id, umid)
             await send_panel(
                 context,
                 chat_id,

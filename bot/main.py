@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -99,7 +100,7 @@ def main() -> None:
     
     health_thread = threading.Thread(target=run_health_server, daemon=True)
     health_thread.start()
-    
+
 # Простой HTTP-сервер для health check и пинга
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
