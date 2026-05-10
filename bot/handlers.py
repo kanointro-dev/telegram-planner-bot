@@ -207,7 +207,7 @@ async def _show_tasks_page(
     ]
     text = format_tasks_monospace_block(title, page_tasks, tz, footer_lines=footer_lines)
     
-    await send_panel(
+    await send_panel_html(
         context, chat_id, text, reply_markup=kb.tasks_list_keyboard()
     )
     
@@ -942,70 +942,6 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     _set_mode(context, "main")
 
-# --- Обработчик inline-кнопок ---
-async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    
-    data = query.data
-    chat_id = query.message.chat_id
-    storage = _storage(context)
-    uid = query.from_user.id
-    tz = _tz(context)
-    
-    internal_uid = await storage.ensure_user(uid)
-    
-    if data.startswith("task_page_"):
-        parts = data.split("_")
-        page = int(parts[2])
-        local_idx = int(parts[3])
-        
-        all_tasks_ids = context.user_data.get(TASK_ORDER) or []
-        global_idx = page * TASKS_PER_PAGE + (local_idx - 1)
-        
-        if 0 <= global_idx < len(all_tasks_ids):
-            task_id = all_tasks_ids[global_idx]
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await _show_task_detail(context, chat_id, storage, internal_uid, tz, task_id)
-    
-    elif data.startswith("task_prev_"):
-        old_page = int(data.split("_")[2])
-        context.user_data[TASK_PAGE] = old_page - 1
-        
-        await query.message.delete()
-        tasks, title = await _tasks_for_scope(
-            storage, internal_uid, tz, context.user_data.get(TASK_SCOPE, "all")
-        )
-        filt = context.user_data.get(TASK_FILTER) or "all"
-        tasks = apply_task_filter(tasks, filt)
-        await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
-    
-    elif data.startswith("task_next_"):
-        old_page = int(data.split("_")[2])
-        context.user_data[TASK_PAGE] = old_page + 1
-        
-        await query.message.delete()
-        tasks, title = await _tasks_for_scope(
-            storage, internal_uid, tz, context.user_data.get(TASK_SCOPE, "all")
-        )
-        filt = context.user_data.get(TASK_FILTER) or "all"
-        tasks = apply_task_filter(tasks, filt)
-        await _show_tasks_page(context, chat_id, storage, internal_uid, tz, title, tasks)
-    
-    elif data == "to_main":
-        _reset_flow(context)
-        _set_mode(context, "main")
-        await query.message.delete()
-        await send_panel(
-            context,
-            chat_id,
-            "🏠 Главное меню",
-            kb.main_reply_keyboard(),
-        )
-# --- Прочие команды ---
 
 # --- Обработчик inline-кнопок ---
 async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1223,6 +1159,7 @@ async def cmd_focus(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_log_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
     if not update.effective_message or not update.effective_user:
         return
     chat_id = update.effective_chat.id
