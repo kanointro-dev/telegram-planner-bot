@@ -298,10 +298,12 @@ async def _show_task_detail(
     remaining = ""
     if task.due_at:
         due = f"📅 Срок: {format_dt_local(task.due_at, tz)}"
-        # Вычисляем оставшееся время
+        # Приводим оба времени к одному часовому поясу
         now = datetime.now(tz)
-        if task.due_at > now:
-            delta = task.due_at - now
+        due_local = task.due_at.astimezone(tz)
+        
+        if due_local > now:
+            delta = due_local - now
             days = delta.days
             hours = delta.seconds // 3600
             minutes = (delta.seconds % 3600) // 60
@@ -314,7 +316,7 @@ async def _show_task_detail(
                 remaining = f"⏳ Осталось: {minutes} мин."
             else:
                 remaining = "⏳ Осталось: меньше минуты"
-        elif task.due_at <= now and task.status != TaskStatus.DONE:
+        elif due_local <= now and task.status != TaskStatus.DONE:
             remaining = "⏰ Просрочено!"
     else:
         due = "📅 Без даты"
