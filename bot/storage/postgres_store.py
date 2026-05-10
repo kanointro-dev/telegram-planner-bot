@@ -424,29 +424,6 @@ class PostgresStorage:
             )
             return [self._row_to_entry(r) for r in rows]
         
-                
-            async def today_time_entries(
-        self, internal_user_id: int, day: date
-    ) -> List[TimeEntry]:
-        """Get all time entries for a specific calendar day."""
-        start_local = datetime.combine(day, time.min, tzinfo=self._tz)
-        end_local = start_local + timedelta(days=1)
-        start_utc = start_local.astimezone(timezone.utc)
-        end_utc = end_local.astimezone(timezone.utc)
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT * FROM time_entries
-                WHERE user_id = $1
-                  AND started_at >= $2 AND started_at < $3
-                ORDER BY started_at
-                """,
-                internal_user_id,
-                _utc_iso(start_utc),
-                _utc_iso(end_utc),
-            )
-            return [self._row_to_entry(r) for r in rows]
-        
     async def update_task_field(self, internal_user_id: int, task_id: int, field: str, value) -> bool:
         """Обновить одно поле задачи."""
         allowed_fields = ["title", "priority", "category", "due_at", "remind_week", "remind_day", "remind_hour", "remind_2hours", "remind_30min"]
