@@ -29,7 +29,7 @@ BTN_TODAY = "📅 Сегодня"
 BTN_TOMORROW = "⏩ Завтра"
 BTN_ALL = "📋 Все даты"
 BTN_ARCHIVE = "📦 Архив"
-BTN_TO_MAIN = "🟠 🏠 В меню"
+BTN_TO_MAIN = "🏠 В меню"
 
 # —— Фильтр в списке ——
 BTN_FIL_ALL = "📋 Все метки"
