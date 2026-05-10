@@ -47,11 +47,39 @@ def format_tasks_monospace_block(
             due_text = ""
         
         title = t.title.replace("\n", " ")
+        # Обрезаем слишком длинные названия (больше 50 символов)
+        if len(title) > 50:
+            title = title[:47] + "..."
         lines.append(f"{i}. {u}{due_text} {title}")
     
     lines.append("")
     lines.extend(footer_lines)
-    return "\n".join(lines)
+    
+    result = "\n".join(lines)
+    
+    # Если сообщение длиннее 4000 символов — обрезаем задачи
+    if len(result) > 4000:
+        # Оставляем только первые 15 задач
+        lines = [heading, ""]
+        for i, t in enumerate(tasks[:15], start=1):
+            u = kb.urgency_emoji(t.priority)
+            if t.due_at:
+                due_s = format_dt_short(t.due_at, tz)
+                due_text = f" <b>{due_s}</b>"
+            elif t.status == TaskStatus.PAUSED:
+                due_text = " ⏸ пауза"
+            else:
+                due_text = ""
+            title = t.title.replace("\n", " ")
+            if len(title) > 50:
+                title = title[:47] + "..."
+            lines.append(f"{i}. {u}{due_text} {title}")
+        lines.append("")
+        lines.append(f"⚠️ Показаны первые 15 задач из {len(tasks)}")
+        lines.extend(footer_lines)
+        result = "\n".join(lines)
+    
+    return result
 
 
 def format_tasks_plain_fallback(
