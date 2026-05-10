@@ -11,3 +11,5 @@ services:
         value: Europe/Moscow
       - key: DATABASE_PATH
         value: /opt/render/project/src/data/planner.db
+      - key: PORT
+        value: 10000
