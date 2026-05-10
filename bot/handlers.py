@@ -41,9 +41,14 @@ FILTERS_FROM_BTN: Dict[str, str] = {
     kb.BTN_FIL_NONE: "none",
 }
 
-REMINDER_FROM_BTN: Dict[str, Tuple[int, int, int, bool]] = {
-    kb.BTN_REM_ON: (1, 1, 1, True),  # неделя, день, час + в момент срока
-    kb.BTN_REM_OFF: (0, 0, 0, False),  # никаких напоминаний
+REMINDER_FROM_BTN: Dict[str, Tuple[int, int, int, int, float, bool]] = {
+    kb.BTN_REM_WEEK: (1, 0, 0, 0, 0, True),      # неделя
+    kb.BTN_REM_DAY: (0, 1, 0, 0, 0, True),       # день
+    kb.BTN_REM_HOUR: (0, 0, 1, 0, 0, True),      # час
+    kb.BTN_REM_2HOURS: (0, 0, 0, 2, 0, True),    # 2 часа
+    kb.BTN_REM_30MIN: (0, 0, 0, 0, 0.5, True),   # 30 минут
+    kb.BTN_REM_DEADLINE: (0, 0, 0, 0, 0, True),  # только в момент срока
+    kb.BTN_REM_OFF: (0, 0, 0, 0, 0, False),      # никаких
 }
 
 
@@ -105,7 +110,7 @@ def _create_reply_kb(create: dict):
     if step in ("day", "month", "time", "title"):
         return kb.date_step_keyboard()
     if step == "reminder":
-        return kb.reminder_keyboard()
+        return kb.reminder_time_keyboard()
     if step == "urgency":
         return kb.create_urgency_keyboard()
     return kb.main_reply_keyboard()
@@ -776,24 +781,36 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 context,
                 chat_id,
                 "Шаг 4 · Напоминания\nВыберите, когда напомнить о дедлайне.",
-                kb.reminder_keyboard(),
+                kb.reminder_time_keyboard(),
             )
             return
 
         if step == "reminder":
+            if text == kb.BTN_REM_BACK:
+                create["step"] = "due"
+                await try_delete_user_message(context, chat_id, umid)
+                await send_panel(
+                    context,
+                    chat_id,
+                    "Шаг 3 · Дедлайн\nКогда дедлайн? Формат: 2024-12-31 23:59 или завтра 18:00",
+                    kb.date_step_keyboard(),
+                )
+                return
             if text not in REMINDER_FROM_BTN:
                 await try_delete_user_message(context, chat_id, umid)
                 await send_panel(
                     context,
                     chat_id,
                     "Выберите вариант кнопкой.",
-                    kb.reminder_keyboard(),
+                    kb.reminder_time_keyboard(),
                 )
                 return
-            rw, rd, rh, sched = REMINDER_FROM_BTN[text]
+            rw, rd, rh, r2h, r30m, sched = REMINDER_FROM_BTN[text]
             create["remind_week"] = rw
             create["remind_day"] = rd
             create["remind_hour"] = rh
+            create["remind_2hours"] = r2h
+            create["remind_30min"] = r30m
             create["schedule_deadline"] = sched
             create["step"] = "title"
             await try_delete_user_message(context, chat_id, umid)
@@ -855,6 +872,8 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 remind_week=rw,
                 remind_day=rd,
                 remind_hour=rh,
+                remind_2hours=r2h,
+                remind_30min=r30m,
             )
             schedule_task_reminders(
                 context.application,

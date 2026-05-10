@@ -17,6 +17,8 @@ def remove_all_task_jobs(job_queue: JobQueue, task_id: int) -> None:
         f"adv7_{tid}",
         f"adv1_{tid}",
         f"advh_{tid}",
+        f"adv2h_{tid}",
+        f"adv30m_{tid}",
     }
     for job in job_queue.jobs():
         if (job.name or "") in targets:
@@ -176,6 +178,28 @@ def schedule_task_reminders(
                 chat_id=chat_id,
                 name=_job_name_adv("advh", task.id),
                 data={**data_base, "label": "за час до срока"},
+            )
+
+    if task.remind_2hours:
+        when = due - timedelta(hours=2)
+        if when > now:
+            jq.run_once(
+                task_advance_callback,
+                when=when,
+                chat_id=chat_id,
+                name=_job_name_adv("adv2h", task.id),
+                data={**data_base, "label": "за 2 часа до срока"},
+            )
+
+    if task.remind_30min:
+        when = due - timedelta(minutes=30)
+        if when > now:
+            jq.run_once(
+                task_advance_callback,
+                when=when,
+                chat_id=chat_id,
+                name=_job_name_adv("adv30m", task.id),
+                data={**data_base, "label": "за 30 минут до срока"},
             )
 
 

@@ -42,8 +42,14 @@ BTN_WITH_DUE = "📅 Со сроком"
 BTN_NO_DUE = "🚫 Без срока"
 
 # —— Напоминания (есть дедлайн) ——
-BTN_REM_ON = "🔔 Напоминать"
+BTN_REM_WEEK = "📅 За неделю"
+BTN_REM_DAY = "📅 За день"
+BTN_REM_HOUR = "⏰ За час"
+BTN_REM_2HOURS = "⏰ За 2 часа"
+BTN_REM_30MIN = "⏰ За 30 минут"
+BTN_REM_DEADLINE = "⏰ В момент срока"
 BTN_REM_OFF = "🔕 Не напоминать"
+BTN_REM_BACK = "◀️ Назад"
 
 # —— Дополнительные меню ——
 BTN_FILTER = "🏷 Фильтр"
@@ -141,6 +147,18 @@ def reminder_keyboard() -> ReplyKeyboardMarkup:
         [
             [KeyboardButton(BTN_REM_ON), KeyboardButton(BTN_REM_OFF)],
             [KeyboardButton(BTN_TO_MAIN)],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def reminder_time_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [
+            [KeyboardButton(BTN_REM_WEEK), KeyboardButton(BTN_REM_DAY)],
+            [KeyboardButton(BTN_REM_HOUR), KeyboardButton(BTN_REM_2HOURS), KeyboardButton(BTN_REM_30MIN)],
+            [KeyboardButton(BTN_REM_DEADLINE), KeyboardButton(BTN_REM_OFF)],
+            [KeyboardButton(BTN_REM_BACK), KeyboardButton(BTN_TO_MAIN)],
         ],
         resize_keyboard=True,
     )

@@ -46,7 +46,9 @@ class SqliteStorage:
                 category TEXT,
                 remind_week INTEGER NOT NULL DEFAULT 0,
                 remind_day INTEGER NOT NULL DEFAULT 0,
-                remind_hour INTEGER NOT NULL DEFAULT 0
+                remind_hour INTEGER NOT NULL DEFAULT 0,
+                remind_2hours INTEGER NOT NULL DEFAULT 0,
+                remind_30min INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_tasks_user_due
                 ON tasks(user_id, due_at);
@@ -120,6 +122,8 @@ class SqliteStorage:
         rw = int(row["remind_week"]) if "remind_week" in keys else 0
         rd = int(row["remind_day"]) if "remind_day" in keys else 0
         rh = int(row["remind_hour"]) if "remind_hour" in keys else 0
+        r2h = int(row["remind_2hours"]) if "remind_2hours" in keys else 0
+        r30m = int(row["remind_30min"]) if "remind_30min" in keys else 0
         return Task(
             id=int(row["id"]),
             internal_user_id=int(row["user_id"]),
@@ -131,6 +135,8 @@ class SqliteStorage:
             remind_week=rw,
             remind_day=rd,
             remind_hour=rh,
+            remind_2hours=r2h,
+            remind_30min=r30m,
         )
 
     async def add_task(
@@ -143,6 +149,8 @@ class SqliteStorage:
         remind_week: int = 0,
         remind_day: int = 0,
         remind_hour: int = 0,
+        remind_2hours: int = 0,
+        remind_30min: int = 0,
     ) -> Task:
         priority = min(2, max(0, int(priority)))
         due_s = _utc_iso(due_at) if due_at else None
@@ -151,9 +159,9 @@ class SqliteStorage:
             """
             INSERT INTO tasks (
                 user_id, title, due_at, priority, created_at,
-                category, remind_week, remind_day, remind_hour
+                category, remind_week, remind_day, remind_hour, remind_2hours, remind_30min
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 internal_user_id,
@@ -165,6 +173,8 @@ class SqliteStorage:
                 int(bool(remind_week)),
                 int(bool(remind_day)),
                 int(bool(remind_hour)),
+                int(bool(remind_2hours)),
+                int(bool(remind_30min)),
             ),
         )
         await self._db.commit()

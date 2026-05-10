@@ -21,6 +21,8 @@ class Storage(Protocol):
         remind_week: int = 0,
         remind_day: int = 0,
         remind_hour: int = 0,
+        remind_2hours: int = 0,
+        remind_30min: int = 0,
     ) -> Task: ...
 
     async def get_task(self, internal_user_id: int, task_id: int) -> Optional[Task]: ...

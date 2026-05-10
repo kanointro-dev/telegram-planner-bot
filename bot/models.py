@@ -27,6 +27,8 @@ class Task:
     remind_week: int
     remind_day: int
     remind_hour: int
+    remind_2hours: int
+    remind_30min: int
 
 
 @dataclass(frozen=True)
