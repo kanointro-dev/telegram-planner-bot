@@ -25,7 +25,7 @@ from bot.handlers import (
     on_main_text,
 )
 from bot.reminders import reschedule_all_reminders
-from bot.storage.sqlite_store import SqliteStorage
+from bot.storage.postgres_store import PostgresStorage
 
 logging.basicConfig(
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _post_init(application: Application) -> None:
-    storage = SqliteStorage(config.DATABASE_PATH, config.DEFAULT_TIMEZONE)
+    storage = PostgresStorage(os.environ["DATABASE_URL"], config.DEFAULT_TIMEZONE)
     await storage.connect()
     application.bot_data["storage"] = storage
     application.bot_data["tz_name"] = config.DEFAULT_TIMEZONE
@@ -44,7 +44,7 @@ async def _post_init(application: Application) -> None:
 
 
 async def _post_shutdown(application: Application) -> None:
-    storage: SqliteStorage = application.bot_data.get("storage")
+    storage: PostgresStorage = application.bot_data.get("storage")
     if storage:
         await storage.close()
         logger.info("Соединение с базой закрыто.")

@@ -24,7 +24,7 @@ from bot.dates import format_dt_local, parse_due_fragment, split_add_command
 from bot.formatting import format_tasks_monospace_block
 from bot.models import Task, TaskStatus
 from bot.reminders import remove_all_task_jobs, schedule_task_reminders
-from bot.storage.sqlite_store import SqliteStorage
+from bot.storage.postgres_store import PostgresStorage
 
 MODE = "ui_mode"
 CREATE = "ui_create"
@@ -54,7 +54,7 @@ REMINDER_FROM_BTN: Dict[str, Tuple[int, int, int, int, float, bool]] = {
 }
 
 
-def _storage(context: ContextTypes.DEFAULT_TYPE) -> SqliteStorage:
+def _storage(context: ContextTypes.DEFAULT_TYPE) -> PostgresStorage:
     return context.application.bot_data["storage"]
 
 
@@ -127,7 +127,7 @@ def _valid_ymd(year: int, month: int, day: int) -> bool:
 
 
 async def _tasks_for_scope(
-    storage: SqliteStorage,
+    storage: PostgresStorage,
     uid: int,
     tz: ZoneInfo,
     scope: str,
@@ -152,7 +152,7 @@ async def _tasks_for_scope(
 async def _show_task_list(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
-    storage: SqliteStorage,
+    storage: PostgresStorage,
     uid: int,
     tz: ZoneInfo,
     scope: str,
@@ -192,7 +192,7 @@ async def _show_task_list(
 async def _show_tasks_page(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
-    storage: SqliteStorage,
+    storage: PostgresStorage,
     uid: int,
     tz: ZoneInfo,
     title: str,
@@ -272,7 +272,7 @@ async def _show_tasks_page(
 async def _show_task_detail(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
-    storage: SqliteStorage,
+    storage: PostgresStorage,
     uid: int,
     tz: ZoneInfo,
     task_id: int,

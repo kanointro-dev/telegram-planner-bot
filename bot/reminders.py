@@ -6,7 +6,7 @@ from telegram.ext import Application, ContextTypes, JobQueue
 
 from bot.dates import format_dt_local
 from bot.models import Task, TaskStatus
-from bot.storage.sqlite_store import SqliteStorage
+from bot.storage.postgres_store import PostgresStorage
 
 
 def remove_all_task_jobs(job_queue: JobQueue, task_id: int) -> None:
@@ -54,7 +54,7 @@ def format_time_left_ru(until_utc: datetime, now_utc: datetime) -> str:
 
 
 async def task_due_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
-    storage: SqliteStorage = context.application.bot_data["storage"]
+    storage: PostgresStorage = context.application.bot_data["storage"]
     tz_name: str = context.application.bot_data["tz_name"]
     task_id: int = context.job.data["task_id"]
     internal_user_id: int = context.job.data["internal_user_id"]
@@ -80,7 +80,7 @@ async def task_due_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def task_advance_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
-    storage: SqliteStorage = context.application.bot_data["storage"]
+    storage: PostgresStorage = context.application.bot_data["storage"]
     tz_name: str = context.application.bot_data["tz_name"]
     task_id: int = context.job.data["task_id"]
     internal_user_id: int = context.job.data["internal_user_id"]
@@ -204,7 +204,7 @@ def schedule_task_reminders(
 
 
 async def reschedule_all_reminders(application: Application) -> None:
-    storage: SqliteStorage = application.bot_data["storage"]
+    storage: PostgresStorage = application.bot_data["storage"]
     jq = application.job_queue
     if jq is None:
         return
