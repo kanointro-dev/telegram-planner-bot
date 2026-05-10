@@ -31,22 +31,26 @@ def format_tasks_monospace_block(
     tz: ZoneInfo,
     *,
     footer_lines: List[str],
+    start_index: int = 1,
 ) -> str:
     """Обычный текст с HTML-жирной датой."""
     heading = html.escape(heading)
     lines = [heading, ""]
     
-    for i, t in enumerate(tasks, start=1):
+    for i, t in enumerate(tasks, start=start_index):
         u = kb.urgency_emoji(t.priority)
-        
+        status_text = ""
+        if t.status == TaskStatus.PAUSED:
+            status_text = " ⏸"
+        elif t.status == TaskStatus.DONE:
+            status_text = " ✅"
+
         if t.due_at:
             due_s = format_dt_short(t.due_at, tz)
-            due_text = f" <b>{due_s}</b>"
-        elif t.status == TaskStatus.PAUSED:
-            due_text = " ⏸ пауза"
+            due_text = f" <b>{due_s}</b>{status_text}"
         else:
-            due_text = ""
-        
+            due_text = status_text
+
         raw_title = t.title.replace("\n", " ")
         if len(raw_title) > 50:
             raw_title = raw_title[:47] + "..."
@@ -62,7 +66,7 @@ def format_tasks_monospace_block(
     if len(result) > 4000:
         # Оставляем только первые 15 задач
         lines = [heading, ""]
-        for i, t in enumerate(tasks[:15], start=1):
+        for i, t in enumerate(tasks[:15], start=start_index):
             u = kb.urgency_emoji(t.priority)
             if t.due_at:
                 due_s = format_dt_short(t.due_at, tz)
@@ -93,11 +97,16 @@ def format_tasks_plain_fallback(
     lines = [heading, ""]
     for i, t in enumerate(tasks, start=1):
         u = kb.urgency_emoji(t.priority)
+        status_text = ""
+        if t.status == TaskStatus.PAUSED:
+            status_text = " ⏸"
+        elif t.status == TaskStatus.DONE:
+            status_text = " ✅"
         due = ""
         if t.due_at:
-            due = " " + format_dt_short(t.due_at, tz)
-        elif t.status == TaskStatus.PAUSED:
-            due = " ⏸ пауза"
+            due = " " + format_dt_short(t.due_at, tz) + status_text
+        else:
+            due = status_text
         lines.append(f"{i}. {u}{due} {t.title}")
     lines.append("")
     lines.extend(footer_lines)

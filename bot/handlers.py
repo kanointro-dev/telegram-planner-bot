@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
+import html
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -201,28 +203,47 @@ async def _show_tasks_page(
     page = context.user_data.get(TASK_PAGE, 0)
     total = len(tasks)
     total_pages = (total + TASKS_PER_PAGE - 1) // TASKS_PER_PAGE
-    
+
+    if page < 0:
+        page = 0
+        context.user_data[TASK_PAGE] = page
+    elif page >= total_pages and total_pages > 0:
+        page = total_pages - 1
+        context.user_data[TASK_PAGE] = page
+
     start = page * TASKS_PER_PAGE
     end = min(start + TASKS_PER_PAGE, total)
     page_tasks = tasks[start:end]
-    
+
     context.user_data[TASK_ORDER] = [t.id for t in tasks]
-    
+
     footer_lines = [
         "",
         f"📄 Страница {page + 1} из {total_pages} · Всего задач: {total}",
         "👇 Нажмите на номер задачи, чтобы открыть"
     ]
-    text = format_tasks_monospace_block(title, page_tasks, tz, footer_lines=footer_lines)
-    
+    text = format_tasks_monospace_block(
+        title,
+        page_tasks,
+        tz,
+        footer_lines=footer_lines,
+        start_index=start + 1,
+    )
+
     await send_panel_html(
         context, chat_id, text, reply_markup=kb.tasks_list_keyboard()
     )
-    
+
     buttons = []
     row = []
     for local_idx in range(1, len(page_tasks) + 1):
-        row.append(InlineKeyboardButton(str(local_idx), callback_data=f"task_page_{page}_{local_idx}"))
+        global_number = start + local_idx
+        row.append(
+            InlineKeyboardButton(
+                str(global_number),
+                callback_data=f"task_page_{page}_{global_number}",
+            )
+        )
         if len(row) == 5:
             buttons.append(row)
             row = []
@@ -273,21 +294,23 @@ async def _show_task_detail(
     cat_line = ""
     if task.category:
         cat_line = f"🏷 Метка: {kb.category_human(task.category)}\n"
-    due = f"\n📅 Срок: {format_dt_local(task.due_at, tz)}" if task.due_at else "\n📅 Без даты"
+    due = f"📅 Срок: {format_dt_local(task.due_at, tz)}" if task.due_at else "📅 Без даты"
     if task.status == TaskStatus.PAUSED:
         st = "\n⏸ На паузе"
     elif task.status == TaskStatus.DONE:
         st = "\n✅ Готово"
     else:
         st = ""
+    title_html = html.escape(task.title.replace("\n", " "))
     text = (
-        f"📌 Задача №{task.id}\n"
+        f"📌 Задача №{task.id}\n\n"
         f"{cat_line}"
-        f"{u} Срочность: {_urgency_word(task.priority)}\n"
-        f"📝 {task.title}{due}{st}\n\n"
-        "Выберите действие ниже."
+        f"{u} Срочность: {_urgency_word(task.priority)}\n\n"
+        f"<b>{title_html}</b>\n\n"
+        f"{due}{st}\n\n"
+        "--- Действия ниже ---"
     )
-    await send_panel(context, chat_id, text, kb.task_actions_keyboard(task))
+    await send_panel_html(context, chat_id, text, kb.task_actions_keyboard(task))
 
 def _scope_from_button(text: str) -> Optional[str]:
     if text == kb.BTN_TODAY:
@@ -998,11 +1021,14 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.answer("Некорректный выбор.", show_alert=False)
             return
 
-        page = int(parts[2])
-        local_idx = int(parts[3])
+        try:
+            selected_idx = int(parts[3])
+        except ValueError:
+            await query.answer("Некорректный выбор.", show_alert=False)
+            return
 
         all_tasks_ids = context.user_data.get(TASK_ORDER) or []
-        global_idx = page * TASKS_PER_PAGE + (local_idx - 1)
+        global_idx = selected_idx - 1
 
         if 0 <= global_idx < len(all_tasks_ids):
             task_id = all_tasks_ids[global_idx]

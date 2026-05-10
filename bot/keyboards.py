@@ -29,7 +29,7 @@ BTN_TODAY = "📅 Сегодня"
 BTN_TOMORROW = "⏩ Завтра"
 BTN_ALL = "📋 Все даты"
 BTN_ARCHIVE = "📦 Архив"
-BTN_TO_MAIN = "🏠 В меню"
+BTN_TO_MAIN = "🟠 🏠 В меню"
 
 # —— Фильтр в списке ——
 BTN_FIL_ALL = "📋 Все метки"
@@ -68,10 +68,10 @@ URGENCY_BY_LABEL = {
 
 # —— Действия над задачей ——
 BTN_DONE = "✅ Готово"
-BTN_DELETE = "🗑 Удалить"
-BTN_PAUSE = "⏸ Пауза"
-BTN_RESUME = "▶️ Снова в работу"
-BTN_TO_LIST = "📋 К списку"
+BTN_DELETE = "🗑️ Удалить"
+BTN_PAUSE = "🟡 ⏸ Пауза"
+BTN_RESUME = "🟢 ▶️ Снова в работу"
+BTN_TO_LIST = "📘 К списку"
 
 
 def main_reply_keyboard() -> ReplyKeyboardMarkup:
