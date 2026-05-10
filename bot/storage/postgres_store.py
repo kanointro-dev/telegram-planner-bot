@@ -424,6 +424,7 @@ class PostgresStorage:
             )
             return [self._row_to_entry(r) for r in rows]
         
+                
             async def today_time_entries(
         self, internal_user_id: int, day: date
     ) -> List[TimeEntry]:
@@ -445,9 +446,7 @@ class PostgresStorage:
                 _utc_iso(end_utc),
             )
             return [self._row_to_entry(r) for r in rows]
-
-    # ← ВОТ ЗДЕСЬ ДОБАВЬ НОВУЮ ФУНКЦИЮ (перед закрывающим отступом класса)
-
+        
     async def update_task_field(self, internal_user_id: int, task_id: int, field: str, value) -> bool:
         """Обновить одно поле задачи."""
         allowed_fields = ["title", "priority", "category", "due_at", "remind_week", "remind_day", "remind_hour", "remind_2hours", "remind_30min"]
@@ -455,6 +454,9 @@ class PostgresStorage:
             return False
         
         async with self._pool.acquire() as conn:
+            # Для due_at нужно преобразовать в строку
+            if field == "due_at" and value is not None:
+                value = _utc_iso(value)
             result = await conn.execute(
                 f"UPDATE tasks SET {field} = $1 WHERE id = $2 AND user_id = $3",
                 value, task_id, internal_user_id
