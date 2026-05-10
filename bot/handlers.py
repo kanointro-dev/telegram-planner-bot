@@ -472,6 +472,155 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.effective_message or not update.effective_user or not update.message:
         return
     text = (update.message.text or "").strip()
+
+            # --- Редактирование задачи: ожидание ввода ---
+    edit_step = context.user_data.get("edit_step")
+    if edit_step and edit_step.startswith("waiting_"):
+        edit_id = context.user_data.get("edit_task_id")
+        edit_data = context.user_data.get("edit_task_data")
+        edit_field = context.user_data.get("edit_field")
+        
+        if not edit_id or not edit_data:
+            context.user_data.pop("edit_step", None)
+            context.user_data.pop("edit_task_id", None)
+            context.user_data.pop("edit_task_data", None)
+            await send_panel(context, chat_id, "Сессия редактирования истекла. Начните заново.", kb.main_reply_keyboard())
+            return
+        
+        if edit_step == "waiting_title":
+            new_title = text.strip()
+            if not new_title:
+                await send_panel(context, chat_id, "Текст не может быть пустым.", kb.date_step_keyboard())
+                return
+            await storage.update_task_field(uid, edit_id, "title", new_title)
+            await send_panel(context, chat_id, f"✅ Текст задачи обновлён.", kb.main_reply_keyboard())
+        
+        elif edit_step == "waiting_due":
+            if text.strip() == "/skip":
+                await send_panel(context, chat_id, "⏩ Срок не изменён.", kb.main_reply_keyboard())
+            else:
+                # Парсим дату (упрощённо)
+                try:
+                    parts = text.strip().split()
+                    if len(parts) == 4:
+                        day, month, hour, minute = map(int, parts)
+                        now = datetime.now(tz)
+                        year = now.year
+                        due_local = datetime(year, month, day, hour, minute, tzinfo=tz)
+                        if due_local < now:
+                            due_local = datetime(year + 1, month, day, hour, minute, tzinfo=tz)
+                        await storage.update_task_field(uid, edit_id, "due_at", due_local)
+                        await send_panel(context, chat_id, f"✅ Срок обновлён: {format_dt_local(due_local, tz)}", kb.main_reply_keyboard())
+                    else:
+                        await send_panel(context, chat_id, "❌ Неверный формат. Используйте: день месяц час минуты", kb.date_step_keyboard())
+                        return
+                except Exception as e:
+                    await send_panel(context, chat_id, f"❌ Ошибка: {e}", kb.date_step_keyboard())
+                    return
+        
+        elif edit_step == "waiting_priority":
+            # Обработка будет в callback, но на всякий случай
+            pass
+        
+        elif edit_step == "waiting_category":
+            # Обработка будет в callback
+            pass
+        
+        elif edit_step == "waiting_reminder":
+            # Обработка будет в callback
+            pass
+            # --- Редактирование: выбор срочности ---
+    elif data.startswith("urg_") and context.user_data.get("edit_step") == "waiting_priority":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        urg_map = {"urg_red": 2, "urg_yellow": 1, "urg_white": 0}
+        if data not in urg_map:
+            await query.answer("Некорректная срочность.", show_alert=False)
+            return
+        
+        await storage.update_task_field(internal_uid, edit_id, "priority", urg_map[data])
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Срочность обновлена!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+
+    # --- Редактирование: выбор категории ---
+    elif data.startswith("cat_") and context.user_data.get("edit_step") == "waiting_category":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        cat_map = {"cat_study": "study", "cat_work": "work", "cat_life": "life", "cat_skip": None}
+        if data not in cat_map:
+            await query.answer("Некорректная категория.", show_alert=False)
+            return
+        
+        await storage.update_task_field(internal_uid, edit_id, "category", cat_map[data])
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Метка обновлена!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+
+    # --- Редактирование: выбор напоминаний ---
+    elif data.startswith("rem_") and context.user_data.get("edit_step") == "waiting_reminder":
+        edit_id = context.user_data.get("edit_task_id")
+        if not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        rem_map = {
+            "rem_week": (1, 0, 0, 0, 0, True),
+            "rem_day": (0, 1, 0, 0, 0, True),
+            "rem_hour": (0, 0, 1, 0, 0, True),
+            "rem_2hours": (0, 0, 0, 2, 0, True),
+            "rem_30min": (0, 0, 0, 0, 30, True),
+            "rem_deadline": (0, 0, 0, 0, 0, True),
+            "rem_off": (0, 0, 0, 0, 0, False),
+        }
+        
+        if data == "rem_back":
+            await query.message.edit_text("🔔 Выберите настройки напоминаний:", reply_markup=kb.reminder_time_keyboard())
+            return
+        
+        if data not in rem_map:
+            await query.answer("Некорректное напоминание.", show_alert=False)
+            return
+        
+        rw, rd, rh, r2h, r30m, sched = rem_map[data]
+        await storage.update_task_field(internal_uid, edit_id, "remind_week", rw)
+        await storage.update_task_field(internal_uid, edit_id, "remind_day", rd)
+        await storage.update_task_field(internal_uid, edit_id, "remind_hour", rh)
+        await storage.update_task_field(internal_uid, edit_id, "remind_2hours", r2h)
+        await storage.update_task_field(internal_uid, edit_id, "remind_30min", r30m)
+        await query.message.delete()
+        await send_panel(context, chat_id, "✅ Настройки напоминаний обновлены!", kb.main_reply_keyboard())
+        
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+        return
+        
+        # Очищаем сессию редактирования
+        context.user_data.pop("edit_step", None)
+        context.user_data.pop("edit_task_id", None)
+        context.user_data.pop("edit_task_data", None)
+        context.user_data.pop("edit_field", None)
+        
+        await _show_task_detail(context, chat_id, storage, uid, tz, edit_id)
+        return
     
          # Если сообщение из группы — не удаляем и не обрабатываем команды бота
     if update.effective_chat.type in ["group", "supergroup"]:
@@ -1144,6 +1293,97 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.message.delete()
         await _show_task_list(context, chat_id, storage, internal_uid, tz, sc)
         return
+
+    elif data.startswith("task_edit_"):
+        tid = int(data.split("_")[2])
+        task = await storage.get_task(internal_uid, tid)
+        if not task:
+            await query.answer("Задача не найдена.", show_alert=True)
+            return
+        
+        # Сохраняем ID редактируемой задачи и начинаем процесс
+        context.user_data["edit_task_id"] = tid
+        context.user_data["edit_task_data"] = {
+            "title": task.title,
+            "due_at": task.due_at,
+            "priority": task.priority,
+            "category": task.category,
+            "remind_week": task.remind_week,
+            "remind_day": task.remind_day,
+            "remind_hour": task.remind_hour,
+            "remind_2hours": task.remind_2hours,
+            "remind_30min": task.remind_30min,
+        }
+        context.user_data["edit_step"] = "what_to_edit"
+        await query.message.delete()
+        await send_panel(
+            context,
+            chat_id,
+            "✏️ Что вы хотите редактировать?",
+            kb.edit_what_keyboard(),
+        )
+        return
+    
+        # --- Обработка выбора поля для редактирования ---
+    elif data.startswith("edit_"):
+        edit_step = context.user_data.get("edit_step")
+        edit_data = context.user_data.get("edit_task_data")
+        edit_id = context.user_data.get("edit_task_id")
+        
+        if not edit_data or not edit_id:
+            await query.answer("Сессия редактирования истекла.", show_alert=True)
+            return
+        
+        if data == "edit_title":
+            context.user_data["edit_field"] = "title"
+            context.user_data["edit_step"] = "waiting_title"
+            await query.message.edit_text(
+                "📝 Введите новый текст задачи:",
+                reply_markup=kb.date_step_keyboard(),
+            )
+            return
+        
+        elif data == "edit_due":
+            context.user_data["edit_field"] = "due"
+            context.user_data["edit_step"] = "waiting_due"
+            await query.message.edit_text(
+                "📅 Введите новую дату.\nФормат: день месяц час минуты\nНапример: 15 05 14 30",
+                reply_markup=kb.date_step_keyboard(),
+            )
+            return
+        
+        elif data == "edit_priority":
+            context.user_data["edit_step"] = "waiting_priority"
+            await query.message.edit_text(
+                "🔴 Выберите новую срочность:",
+                reply_markup=kb.create_urgency_keyboard(),
+            )
+            return
+        
+        elif data == "edit_category":
+            context.user_data["edit_step"] = "waiting_category"
+            await query.message.edit_text(
+                "🏷 Выберите новую метку:",
+                reply_markup=kb.category_keyboard(),
+            )
+            return
+        
+        elif data == "edit_reminder":
+            context.user_data["edit_step"] = "waiting_reminder"
+            await query.message.edit_text(
+                "🔔 Выберите новые настройки напоминаний:",
+                reply_markup=kb.reminder_time_keyboard(),
+            )
+            return
+        
+        elif data == "edit_back":
+            context.user_data.pop("edit_task_id", None)
+            context.user_data.pop("edit_task_data", None)
+            context.user_data.pop("edit_step", None)
+            context.user_data.pop("edit_field", None)
+            await query.message.delete()
+            await _show_task_detail(context, chat_id, storage, internal_uid, tz, edit_id)
+            return
 
     # --- Обработка действий над задачей ---
     elif data.startswith("task_done_"):

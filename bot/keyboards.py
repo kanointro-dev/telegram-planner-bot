@@ -72,6 +72,27 @@ BTN_DELETE = "🗑️ Удалить"
 BTN_PAUSE = "🟡 ⏸ Пауза"
 BTN_RESUME = "🟢 ▶️ Снова в работу"
 BTN_TO_LIST = "📘 К списку"
+BTN_EDIT = "✏️ Редактировать"
+
+# —— Редактирование задачи ——
+BTN_EDIT_TITLE = "📝 Текст задачи"
+BTN_EDIT_DUE = "📅 Срок"
+BTN_EDIT_PRIORITY = "🔴 Срочность"
+BTN_EDIT_CATEGORY = "🏷 Метка"
+BTN_EDIT_REMINDER = "🔔 Напоминания"
+BTN_EDIT_BACK = "◀️ Назад"
+
+def edit_what_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(BTN_EDIT_TITLE, callback_data="edit_title")],
+            [InlineKeyboardButton(BTN_EDIT_DUE, callback_data="edit_due")],
+            [InlineKeyboardButton(BTN_EDIT_PRIORITY, callback_data="edit_priority")],
+            [InlineKeyboardButton(BTN_EDIT_CATEGORY, callback_data="edit_category")],
+            [InlineKeyboardButton(BTN_EDIT_REMINDER, callback_data="edit_reminder")],
+            [InlineKeyboardButton(BTN_EDIT_BACK, callback_data="edit_back")],
+        ]
+    )
 
 
 def main_reply_keyboard() -> InlineKeyboardMarkup:
@@ -216,6 +237,7 @@ def task_actions_keyboard(task: Task) -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton(BTN_DONE, callback_data=f"task_done_{task.id}"),
+                InlineKeyboardButton(BTN_EDIT, callback_data=f"task_edit_{task.id}"),
                 InlineKeyboardButton(BTN_DELETE, callback_data=f"task_delete_{task.id}"),
             ],
             row_mid,
