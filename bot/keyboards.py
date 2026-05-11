@@ -123,7 +123,7 @@ def category_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def tasks_scope_keyboard() -> InlineKeyboardMarkup:
+    ddef tasks_scope_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
@@ -132,10 +132,7 @@ def tasks_scope_keyboard() -> InlineKeyboardMarkup:
             ],
             [InlineKeyboardButton(BTN_ALL, callback_data="scope_all")],
             [InlineKeyboardButton(BTN_ARCHIVE, callback_data="scope_archive")],
-            [
-                InlineKeyboardButton(BTN_BACK, callback_data="back_to_main"),
-                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
-            ],
+            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
         ]
     )
 
