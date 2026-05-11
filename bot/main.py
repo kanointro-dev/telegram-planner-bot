@@ -22,6 +22,7 @@ from bot.handlers import (
     cmd_rm,
     cmd_start,
     cmd_today,
+    cmd_timezone,
     on_main_text,
 )
 from bot.reminders import reschedule_all_reminders
@@ -63,6 +64,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("help", cmd_help))
     application.add_handler(CommandHandler("cancel", cmd_cancel))
+    application.add_handler(CommandHandler("timezone", cmd_timezone))
     application.add_handler(CommandHandler("add", cmd_add))
     application.add_handler(CommandHandler("today", cmd_today))
     application.add_handler(CommandHandler("inbox", cmd_inbox))

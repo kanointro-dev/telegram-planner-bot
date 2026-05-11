@@ -24,15 +24,59 @@ class PostgresStorage:
         self._tz = ZoneInfo(tz_name)
         self._pool: Optional[asyncpg.Pool] = None
 
+    async def get_user_timezone(self, telegram_user_id: int) -> str:
+        """Получить часовой пояс пользователя."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT timezone FROM users WHERE telegram_user_id = $1",
+                telegram_user_id
+            )
+            if row and row["timezone"]:
+                return row["timezone"]
+            return "Europe/Moscow"
+
+    async def set_user_timezone(self, telegram_user_id: int, timezone: str) -> None:
+        """Установить часовой пояс пользователя."""
+        async with self._pool.acquire() as conn:
+            internal = await self.ensure_user(telegram_user_id)
+            await conn.execute(
+                "UPDATE users SET timezone = $1 WHERE id = $2",
+                timezone, internal
+            )
+
+async def set_user_timezone(self, telegram_user_id: int, timezone: str) -> None:
+    """Установить часовой пояс пользователя."""
+    async with self._pool.acquire() as conn:
+        internal = await self.ensure_user(telegram_user_id)
+        await conn.execute(
+            "UPDATE users SET timezone = $1 WHERE id = $2",
+            timezone, internal
+        )
+
     async def connect(self) -> None:
-        """Create connection pool and initialize schema."""
-        print("DEBUG: Connecting to PostgreSQL...", flush=True)
+     """Create connection pool and initialize schema."""
+    print("DEBUG: Connecting to PostgreSQL...", flush=True)
+    try:
+        self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
+        await self._create_tables()
+        await self._migrate_add_timezone()
+    except Exception as e:
+        print(f"FATAL: {e}", flush=True)
+        raise
+
+async def _migrate_add_timezone(self) -> None:
+    """Добавить колонку timezone в таблицу users, если её нет."""
+    async with self._pool.acquire() as conn:
         try:
-            self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
-            await self._create_tables()
+            await conn.execute("ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Europe/Moscow'")
+            print("DEBUG: Added timezone column to users table", flush=True)
         except Exception as e:
-            print(f"FATAL: {e}", flush=True)
-            raise
+            # Колонка уже существует — игнорируем ошибку
+            print(f"DEBUG: timezone column already exists or error: {e}", flush=True)
+                
+        
+
+        
 
     async def close(self) -> None:
         """Close all connections in the pool."""
@@ -46,9 +90,10 @@ class PostgresStorage:
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    telegram_user_id BIGINT NOT NULL UNIQUE
-                );
+    id SERIAL PRIMARY KEY,
+    telegram_user_id BIGINT NOT NULL UNIQUE,
+    timezone TEXT DEFAULT 'Europe/Moscow'
+);
                 """
             )
             await conn.execute(

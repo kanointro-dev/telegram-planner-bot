@@ -57,6 +57,11 @@ def _storage(context: ContextTypes.DEFAULT_TYPE) -> PostgresStorage:
     return context.application.bot_data["storage"]
 
 def _tz(context: ContextTypes.DEFAULT_TYPE) -> ZoneInfo:
+    # Берём таймзону из user_data (установлена при старте или через /timezone)
+    user_tz = context.user_data.get("user_timezone")
+    if user_tz:
+        return ZoneInfo(user_tz)
+    # Если нет — используем дефолтную из конфига
     return ZoneInfo(context.application.bot_data["tz_name"])
 
 def _set_mode(context: ContextTypes.DEFAULT_TYPE, mode: str) -> None:
@@ -322,18 +327,39 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_message or not update.effective_user:
         return
     chat_id = update.effective_chat.id
-    await _storage(context).ensure_user(update.effective_user.id)
+    storage = _storage(context)
+    
+    # Создаём пользователя в БД
+    await storage.ensure_user(update.effective_user.id)
+    
+    # Получаем часовой пояс пользователя из БД
+    user_tz = await storage.get_user_timezone(update.effective_user.id)
+    if user_tz and user_tz != "Europe/Moscow":
+        context.user_data["user_timezone"] = user_tz
+    
+    # Очищаем старые сообщения
     old_ids = peek_tracked_ids(context.user_data)
     context.user_data.clear()
     await purge_message_ids(context.bot, chat_id, old_ids)
+    
+    # Если таймзона не установлена — спрашиваем
+    if not user_tz or user_tz == "Europe/Moscow":
+        await send_panel(
+            context,
+            chat_id,
+            "🌍 Выберите ваш часовой пояс (можно будет сменить командой /timezone):",
+            kb.timezone_keyboard()
+        )
+        return
+    
+    # Если таймзона уже есть — показываем главное меню
     text = (
         "👋 Привет! Я — ваш аккуратный список дел.\n\n"
         "✨ С чего начать:\n"
-        "• 📝 Создать задачу — метка, дата по шагам (день → месяц → время), напоминания, текст.\n"
-        "• 📋 Задачи — день, фильтр по метке, номер строки → действия.\n"
-        "• 🎲 Случайная — если лень выбирать.\n\n"
-        "📖 Вся инструкция с картинками-смайлами: /help\n"
-        "💬 Автор и поддержка: @kanohka"
+        "• 📝 Создать задачу — метка, дата по шагам, напоминания, текст.\n"
+        "• 📋 Задачи — день, фильтр по метке, номер строки → действия.\n\n"
+        "📖 /help — инструкция\n"
+        "💬 Автор: @kanohka"
     )
     await send_panel(context, chat_id, text, kb.main_reply_keyboard())
 
@@ -619,6 +645,24 @@ async def on_main_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await send_panel(context, chat_id, "Выберите фильтр кнопкой.", kb.tasks_filter_keyboard())
         return
 
+    if mode == "tasks_filter_from_list":
+        if text == kb.BTN_TO_MAIN:
+            await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
+            _reset_flow(context)
+            _set_mode(context, "main")
+            await send_panel(context, chat_id, "🏠 Главное меню", kb.main_reply_keyboard())
+            return
+        if text in FILTERS_FROM_BTN:
+            context.user_data[TASK_FILTER] = FILTERS_FROM_BTN[text]
+            # Возвращаемся к списку задач с сохранённым периодом
+            pending_scope = context.user_data.get("pending_scope", "all")
+            _set_mode(context, "tasks_list")
+            await _show_task_list(context, chat_id, storage, uid, tz, pending_scope)
+            return
+        await try_delete_user_message(context, chat_id, umid, update.effective_chat.type)
+        await send_panel(context, chat_id, "Выберите фильтр кнопкой.", kb.tasks_filter_keyboard())
+        return
+    
     if mode == "tasks_scope":
         scope_btn = _scope_from_button(text)
         if scope_btn:
@@ -842,6 +886,30 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     tz = _tz(context)
     internal_uid = await storage.ensure_user(uid)
 
+        # --- Выбор часового пояса ---
+    if data.startswith("tz_"):
+        if data == "tz_skip":
+            tz = "Europe/Moscow"
+        else:
+            tz = data.replace("tz_", "")
+        
+        await storage.set_user_timezone(uid, tz)
+        context.user_data["user_timezone"] = tz
+        
+        await query.message.delete()
+        
+        text = (
+            f"✅ Часовой пояс установлен: {tz}\n\n"
+            "👋 Привет! Я — ваш аккуратный список дел.\n\n"
+            "✨ С чего начать:\n"
+            "• 📝 Создать задачу\n"
+            "• 📋 Задачи\n\n"
+            "📖 /help — инструкция\n"
+            "💬 Автор: @kanohka"
+        )
+        await send_panel(context, chat_id, text, kb.main_reply_keyboard())
+        return
+
     # --- Новые главные кнопки ---
     if data == "create_task":
         await query.message.delete()
@@ -875,6 +943,14 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await send_panel(context, chat_id, f"🎲 Попробуйте начать с этого:\n\n{line}\n\nЗакончите → «Задачи» → номер строки → «Готово».", kb.main_reply_keyboard())
         return
 
+    # --- Фильтр из списка задач ---
+    elif data == "filter_from_list":
+        # Сохраняем текущий период
+        context.user_data["pending_scope"] = context.user_data.get(TASK_SCOPE, "all")
+        _set_mode(context, "tasks_filter_from_list")
+        await send_panel(context, chat_id, "🏷 Выберите метку для фильтрации:", kb.tasks_filter_keyboard())
+        return
+    
         # --- Обработка кнопки "Назад" из выбора периода ---
     elif data == "back_to_main":
         await query.message.delete()
@@ -1488,4 +1564,15 @@ async def cmd_log_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         chat_id,
         "📊 Лог:\n" + "\n".join(lines) + f"\n\nВсего ~{total // 60} мин",
         kb.main_reply_keyboard(),
+    )
+# Команда для смены часового пояса
+async def cmd_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_message or not update.effective_user:
+        return
+    chat_id = update.effective_chat.id
+    await send_panel(
+        context,
+        chat_id,
+        "🌍 Выберите ваш часовой пояс:",
+        kb.timezone_keyboard()
     )

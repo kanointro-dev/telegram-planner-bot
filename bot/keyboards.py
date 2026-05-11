@@ -123,7 +123,7 @@ def category_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-    ddef tasks_scope_keyboard() -> InlineKeyboardMarkup:
+def tasks_scope_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
@@ -141,10 +141,11 @@ def tasks_list_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура для списка задач."""
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton(BTN_FILTER, callback_data="filter_from_list")],
             [
                 InlineKeyboardButton(BTN_BACK, callback_data="back_to_scope"),
                 InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
-            ]
+            ],
         ]
     )
 
@@ -274,3 +275,27 @@ def category_human(cat: Optional[str]) -> str:
     if cat == "life":
         return "Жизнь"
     return ""
+
+# —— Часовые пояса ——
+TIMEZONES = [
+    ("Москва", "Europe/Moscow"),
+    ("Калининград", "Europe/Kaliningrad"),
+    ("Самара", "Europe/Samara"),
+    ("Екатеринбург", "Asia/Yekaterinburg"),
+    ("Омск", "Asia/Omsk"),
+    ("Новосибирск", "Asia/Novosibirsk"),
+    ("Красноярск", "Asia/Krasnoyarsk"),
+    ("Иркутск", "Asia/Irkutsk"),
+    ("Якутск", "Asia/Yakutsk"),
+    ("Владивосток", "Asia/Vladivostok"),
+    ("Магадан", "Asia/Magadan"),
+    ("Камчатка", "Asia/Kamchatka"),
+    ("Бангкок", "Asia/Bangkok"),
+]
+
+def timezone_keyboard() -> InlineKeyboardMarkup:
+    buttons = []
+    for name, tz in TIMEZONES:
+        buttons.append([InlineKeyboardButton(name, callback_data=f"tz_{tz}")])
+    buttons.append([InlineKeyboardButton("🏠 Пропустить (Москва)", callback_data="tz_skip")])
+    return InlineKeyboardMarkup(buttons)
