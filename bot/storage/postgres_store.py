@@ -24,6 +24,32 @@ class PostgresStorage:
         self._tz = ZoneInfo(tz_name)
         self._pool: Optional[asyncpg.Pool] = None
 
+    async def connect(self) -> None:
+        """Create connection pool and initialize schema."""
+        print("DEBUG: Connecting to PostgreSQL...", flush=True)
+        try:
+            self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
+            await self._create_tables()
+            await self._migrate_add_timezone()
+        except Exception as e:
+            print(f"FATAL: {e}", flush=True)
+            raise
+
+    async def _migrate_add_timezone(self) -> None:
+        """Добавить колонку timezone в таблицу users, если её нет."""
+        async with self._pool.acquire() as conn:
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Europe/Moscow'")
+                print("DEBUG: Added timezone column to users table", flush=True)
+            except Exception as e:
+                print(f"DEBUG: timezone column already exists or error: {e}", flush=True)
+
+    async def close(self) -> None:
+        """Close all connections in the pool."""
+        if self._pool:
+            await self._pool.close()
+            self._pool = None
+
     async def get_user_timezone(self, telegram_user_id: int) -> str:
         """Получить часовой пояс пользователя."""
         async with self._pool.acquire() as conn:
@@ -44,56 +70,16 @@ class PostgresStorage:
                 timezone, internal
             )
 
-async def set_user_timezone(self, telegram_user_id: int, timezone: str) -> None:
-    """Установить часовой пояс пользователя."""
-    async with self._pool.acquire() as conn:
-        internal = await self.ensure_user(telegram_user_id)
-        await conn.execute(
-            "UPDATE users SET timezone = $1 WHERE id = $2",
-            timezone, internal
-        )
-
-    async def connect(self) -> None:
-     """Create connection pool and initialize schema."""
-    print("DEBUG: Connecting to PostgreSQL...", flush=True)
-    try:
-        self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=10)
-        await self._create_tables()
-        await self._migrate_add_timezone()
-    except Exception as e:
-        print(f"FATAL: {e}", flush=True)
-        raise
-
-async def _migrate_add_timezone(self) -> None:
-    """Добавить колонку timezone в таблицу users, если её нет."""
-    async with self._pool.acquire() as conn:
-        try:
-            await conn.execute("ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Europe/Moscow'")
-            print("DEBUG: Added timezone column to users table", flush=True)
-        except Exception as e:
-            # Колонка уже существует — игнорируем ошибку
-            print(f"DEBUG: timezone column already exists or error: {e}", flush=True)
-                
-        
-
-        
-
-    async def close(self) -> None:
-        """Close all connections in the pool."""
-        if self._pool:
-            await self._pool.close()
-            self._pool = None
-
     async def _create_tables(self) -> None:
         """Create all necessary tables if they don't exist."""
         async with self._pool.acquire() as conn:
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    telegram_user_id BIGINT NOT NULL UNIQUE,
-    timezone TEXT DEFAULT 'Europe/Moscow'
-);
+                    id SERIAL PRIMARY KEY,
+                    telegram_user_id BIGINT NOT NULL UNIQUE,
+                    timezone TEXT DEFAULT 'Europe/Moscow'
+                );
                 """
             )
             await conn.execute(
@@ -468,15 +454,14 @@ async def _migrate_add_timezone(self) -> None:
                 _utc_iso(end_utc),
             )
             return [self._row_to_entry(r) for r in rows]
-        
+
     async def update_task_field(self, internal_user_id: int, task_id: int, field: str, value) -> bool:
         """Обновить одно поле задачи."""
         allowed_fields = ["title", "priority", "category", "due_at", "remind_week", "remind_day", "remind_hour", "remind_2hours", "remind_30min"]
         if field not in allowed_fields:
             return False
-        
+
         async with self._pool.acquire() as conn:
-            # Для due_at нужно преобразовать в строку
             if field == "due_at" and value is not None:
                 value = _utc_iso(value)
             result = await conn.execute(
