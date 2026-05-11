@@ -141,9 +141,14 @@ def tasks_scope_keyboard() -> InlineKeyboardMarkup:
 
 
 def tasks_list_keyboard() -> InlineKeyboardMarkup:
-    """Упрощённая клавиатура — только кнопка выхода."""
+    """Клавиатура для списка задач."""
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")]]
+        [
+            [
+                InlineKeyboardButton(BTN_BACK, callback_data="back_to_scope"),
+                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
+            ]
+        ]
     )
 
 

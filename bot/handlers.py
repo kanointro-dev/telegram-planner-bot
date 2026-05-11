@@ -875,7 +875,7 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await send_panel(context, chat_id, f"🎲 Попробуйте начать с этого:\n\n{line}\n\nЗакончите → «Задачи» → номер строки → «Готово».", kb.main_reply_keyboard())
         return
 
-    # --- Обработка кнопки "Назад" из выбора периода ---
+        # --- Обработка кнопки "Назад" из выбора периода ---
     elif data == "back_to_main":
         await query.message.delete()
         _reset_flow(context)
@@ -891,7 +891,13 @@ async def handle_task_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await send_panel(context, chat_id, "📆 За какой период показать задачи?", kb.tasks_scope_keyboard())
         return
 
-    # ... остальные обработчики (cat_, urg_, due_with, scope_, filter_, task_edit_, edit_, task_done_, и т.д.)
+    # --- Обработка кнопки "Назад" из списка задач ---
+    elif data == "back_to_scope":
+        await query.message.delete()
+        context.user_data[TASK_FILTER] = "all"
+        _set_mode(context, "tasks_scope")
+        await send_panel(context, chat_id, "📆 За какой период показать задачи?", kb.tasks_scope_keyboard())
+        return
 
     # --- Обработка категорий (создание) ---
     elif data.startswith("cat_"):
