@@ -209,7 +209,7 @@ async def _show_tasks_page(
     row = []
     for local_idx in range(1, len(page_tasks) + 1):
         global_number = start + local_idx
-        row.append(InlineKeyboardButton(str(global_number), callback_data=f"task_page_{page}_{global_number}"))
+        row.append(InlineKeyboardButton(str(local_idx), callback_data=f"task_page_{page}_{local_idx}"))
         if len(row) == 5:
             buttons.append(row)
             row = []
