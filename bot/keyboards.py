@@ -9,7 +9,7 @@ from bot.models import Task, TaskStatus
 # —— Главное меню ——
 BTN_CREATE = "➕ Создать задачу"
 BTN_TASKS = "📋 Задачи"
-BTN_RANDOM = "🎲 Случайная"
+BTN_RANDOM = "🎲 Случайная"  # Не используется, оставлено для совместимости
 
 # —— Метка (заголовок) ——
 BTN_CAT_STUDY = "📚 Учёба"
@@ -30,6 +30,7 @@ BTN_TOMORROW = "⏩ Завтра"
 BTN_ALL = "📋 Все даты"
 BTN_ARCHIVE = "📦 Архив"
 BTN_TO_MAIN = "🏠 В меню"
+BTN_BACK = "◀️ Назад"
 
 # —— Фильтр в списке ——
 BTN_FIL_ALL = "📋 Все метки"
@@ -101,7 +102,6 @@ def main_reply_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton("➕ Создать задачу", callback_data="create_task"),
                 InlineKeyboardButton("📋 Задачи", callback_data="show_tasks"),
-                InlineKeyboardButton("🎲 Случайная", callback_data="random_task"),
             ]
         ]
     )
@@ -132,7 +132,10 @@ def tasks_scope_keyboard() -> InlineKeyboardMarkup:
             ],
             [InlineKeyboardButton(BTN_ALL, callback_data="scope_all")],
             [InlineKeyboardButton(BTN_ARCHIVE, callback_data="scope_archive")],
-            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+            [
+                InlineKeyboardButton(BTN_BACK, callback_data="back_to_main"),
+                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
+            ],
         ]
     )
 
@@ -156,7 +159,10 @@ def tasks_filter_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(BTN_FIL_LIFE, callback_data="filter_life"),
             ],
             [InlineKeyboardButton(BTN_FIL_NONE, callback_data="filter_none")],
-            [InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main")],
+            [
+                InlineKeyboardButton(BTN_BACK, callback_data="back_to_tasks_scope"),
+                InlineKeyboardButton(BTN_TO_MAIN, callback_data="to_main"),
+            ],
         ]
     )
 
@@ -213,6 +219,7 @@ def reminder_time_keyboard() -> InlineKeyboardMarkup:
             ],
         ]
     )
+
 
 def create_urgency_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
